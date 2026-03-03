@@ -3,6 +3,7 @@ import unittest
 import threading
 import json
 import time
+import os
 from typing import List, Dict, Any, Tuple
 
 from cerebrum.llm.apis import llm_chat
@@ -191,6 +192,70 @@ class TestConcurrentOllamaQueries(unittest.TestCase):
         
         for i, result in enumerate(results):
             self._verify_response(result, "Some Specified Different Models", i)
+
+    def test_syscall_logging(self):
+        """Test that LLM syscall logging captures all required metrics when enabled."""
+        # Run a simple concurrent request
+        payload1 = {
+            "agent_name": "logging_test_agent_1",
+            "query_type": "llm",
+            "query_data": {
+                "llms": [{"name": "qwen3:1.7b", "backend": "ollama"}],
+                "messages": [{"role": "user", "content": "Say hi"}],
+                "action_type": "chat",
+                "message_return_type": "text",
+            }
+        }
+        payload2 = {
+            "agent_name": "logging_test_agent_2",
+            "query_type": "llm",
+            "query_data": {
+                "llms": [{"name": "qwen3:1.7b", "backend": "ollama"}],
+                "messages": [{"role": "user", "content": "What is one plus one?"}],
+                "action_type": "chat",
+                "message_return_type": "text",
+            }
+        }
+        
+        results = self._run_concurrent_requests([payload1, payload2])
+        
+        # Verify requests succeeded
+        for i, result in enumerate(results):
+            status = result["data"]["status_code"]
+            self.assertEqual(status, 200, f"Request {i} should succeed for logging test")
+        
+        # Give time for logs to be written
+        time.sleep(1)
+        
+        # Verify log file exists and contains entries
+        log_file = "logs/llm_syscalls.jsonl"
+        self.assertTrue(os.path.exists(log_file), f"Log file {log_file} does not exist")
+        
+        # Read and validate log entries
+        with open(log_file, "r") as f:
+            lines = f.readlines()
+        
+        self.assertGreater(len(lines), 0, f"Log file {log_file} is empty")
+        
+        required_keys = {"input_char_length", "message_count", "has_tools", "latency_ms", "was_interrupted"}
+        
+        for line_num, line in enumerate(lines[-2:]):  # Check last 2 entries (our test requests)
+            line = line.strip()
+            self.assertTrue(len(line) > 0, f"Line {line_num} is empty")
+            
+            try:
+                log_entry = json.loads(line)
+            except json.JSONDecodeError as e:
+                self.fail(f"Line {line_num} is not valid JSON: {e}")
+            
+            # Verify required keys exist
+            for key in required_keys:
+                self.assertIn(key, log_entry, f"Log entry missing required key: {key}")
+            
+            # Verify latency_ms is a positive float
+            latency_ms = log_entry["latency_ms"]
+            self.assertIsInstance(latency_ms, (int, float), f"latency_ms should be numeric, got {type(latency_ms)}")
+            self.assertGreater(latency_ms, 0, f"latency_ms should be positive, got {latency_ms}")
 
 
 if __name__ == '__main__':
