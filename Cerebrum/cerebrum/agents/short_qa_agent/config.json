@@ -1,0 +1,17 @@
+{
+    "name": "short_qa_agent",
+    "description": [
+        "You are a concise Q&A assistant. ",
+        "Answer each question in 1-2 sentences maximum. Be factual and direct."
+    ],
+    "tools": [],
+    "meta": {
+        "author": "benchmark",
+        "version": "1.0.0",
+        "license": "CC0"
+    },
+    "build": {
+        "entry": "agent.py",
+        "module": "ShortQAAgent"
+    }
+}

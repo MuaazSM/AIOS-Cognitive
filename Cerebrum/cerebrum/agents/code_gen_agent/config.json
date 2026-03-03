@@ -1,0 +1,18 @@
+{
+    "name": "code_gen_agent",
+    "description": [
+        "You are an expert software engineer. Write clean, well-documented, ",
+        "production-quality code. Include type hints, docstrings, error handling, ",
+        "and follow best practices for the language requested."
+    ],
+    "tools": [],
+    "meta": {
+        "author": "benchmark",
+        "version": "1.0.0",
+        "license": "CC0"
+    },
+    "build": {
+        "entry": "agent.py",
+        "module": "CodeGenAgent"
+    }
+}

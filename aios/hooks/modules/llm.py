@@ -90,26 +90,17 @@ def log_llm_syscall(syscall) -> None:
     """
     try:
         from aios.config.config_manager import config
-        import traceback as _tb
-
-        print(f"[LOG_LLM_SYSCALL] Called for agent={getattr(syscall, 'agent_name', '?')}", flush=True)
 
         config_dict = getattr(config, "config", {}) or {}
-        log_enabled = config_dict.get("log_syscalls", False)
-        print(f"[LOG_LLM_SYSCALL] config_dict keys={list(config_dict.keys())}, log_syscalls={log_enabled}", flush=True)
-
-        if not log_enabled:
-            print("[LOG_LLM_SYSCALL] Logging disabled, returning", flush=True)
+        if not config_dict.get("log_syscalls", False):
             return
         
-        # Create logs directory if it doesn't exist
-        # Use absolute path relative to workspace root
+        # Use absolute path anchored to this source tree
         workspace_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         logs_dir = os.path.join(workspace_root, "logs")
         os.makedirs(logs_dir, exist_ok=True)
         
         log_file = os.path.join(logs_dir, "llm_syscalls.jsonl")
-        print(f"[LOG_LLM_SYSCALL] Writing to {log_file}", flush=True)
         
         # Extract timing information
         created_time = syscall.get_created_time()
@@ -143,10 +134,6 @@ def log_llm_syscall(syscall) -> None:
         with _llm_syscall_log_lock:
             with open(log_file, "a") as f:
                 f.write(json.dumps(log_record) + "\n")
-        
-        print(f"[LOG_LLM_SYSCALL] Successfully wrote log entry", flush=True)
                 
-    except Exception as e:
-        import traceback as _tb
-        print(f"[LOG_LLM_SYSCALL] ERROR: {e}", flush=True)
-        _tb.print_exc()
+    except Exception:
+        pass

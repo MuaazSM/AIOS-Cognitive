@@ -1,0 +1,18 @@
+{
+    "name": "tool_use_agent",
+    "description": [
+        "You are a research assistant with access to web search and calculator tools. ",
+        "Use tools when the question requires external information or computation. ",
+        "Always explain your reasoning after obtaining tool results."
+    ],
+    "tools": [],
+    "meta": {
+        "author": "benchmark",
+        "version": "1.0.0",
+        "license": "CC0"
+    },
+    "build": {
+        "entry": "agent.py",
+        "module": "ToolUseAgent"
+    }
+}

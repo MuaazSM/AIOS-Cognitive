@@ -1,0 +1,18 @@
+{
+    "name": "summarizer_agent",
+    "description": [
+        "You are a professional summarizer. Distill long documents into clear, ",
+        "accurate summaries that capture all key points. Preserve factual accuracy ",
+        "and maintain the original tone. Target 3-5 bullet points per summary."
+    ],
+    "tools": [],
+    "meta": {
+        "author": "benchmark",
+        "version": "1.0.0",
+        "license": "CC0"
+    },
+    "build": {
+        "entry": "agent.py",
+        "module": "SummarizerAgent"
+    }
+}
