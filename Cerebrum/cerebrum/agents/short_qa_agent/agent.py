@@ -9,22 +9,10 @@ ShortQAAgent — single-turn, short factual answers.
 from cerebrum.llm.apis import LLMQuery
 from cerebrum.utils.communication import send_request
 from cerebrum.config.config_manager import config as cerebrum_config
+from cerebrum.tasks.task_bank import TaskBank
 import os, json
 
 aios_kernel_url = cerebrum_config.get_kernel_url()
-
-TASKS = [
-    "What is photosynthesis?",
-    "Define the Heisenberg uncertainty principle.",
-    "What causes thunder?",
-    "Name the largest planet in our solar system.",
-    "What is the speed of light in a vacuum?",
-    "Who wrote Hamlet?",
-    "What is the chemical formula for table salt?",
-    "Define machine learning in one sentence.",
-    "What year did the Berlin Wall fall?",
-    "What is the boiling point of water at sea level?",
-]
 
 
 class ShortQAAgent:
@@ -39,9 +27,10 @@ class ShortQAAgent:
 
     def run(self, task_input: str):
         system_prompt = "".join(self.config["description"])
+        tasks = TaskBank.get_batch("short_qa_agent", n=10)
         results = []
 
-        for i, task in enumerate(TASKS):
+        for i, task in enumerate(tasks):
             messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": task},

@@ -9,6 +9,7 @@ ToolUseAgent — queries that include tool schemas (search + calculator).
 from cerebrum.llm.apis import LLMQuery
 from cerebrum.utils.communication import send_request
 from cerebrum.config.config_manager import config as cerebrum_config
+from cerebrum.tasks.task_bank import TaskBank
 import os, json
 
 aios_kernel_url = cerebrum_config.get_kernel_url()
@@ -71,19 +72,6 @@ TOOL_SCHEMAS = [
     },
 ]
 
-TASKS = [
-    "Search for the latest breakthroughs in quantum computing from 2025 and summarize the top 3 findings.",
-    "Calculate the compound interest on a $25,000 investment at 6.5% annual rate compounded monthly for 10 years.",
-    "Search for the current population of the top 5 most populous countries and calculate their combined percentage of world population.",
-    "Convert 186,000 miles per second to kilometers per hour, then explain why this speed matters in physics.",
-    "Search for recent advances in CRISPR gene editing. What diseases are closest to having approved CRISPR treatments?",
-    "A rocket burns fuel at 2.5 kg/s with an exhaust velocity of 3,000 m/s. Calculate the thrust using F=mv and the delta-v for a 500 kg payload with 200 kg of fuel using the Tsiolkovsky equation.",
-    "Search for the current state of nuclear fusion research. Which project is closest to net energy gain and by when?",
-    "Calculate the orbital period of a satellite at 400 km altitude above Earth (radius 6371 km, GM = 3.986 × 10^14 m³/s²) using Kepler's third law.",
-    "Search for comparisons between transformer and state-space model architectures for NLP. What are the key tradeoffs in 2025?",
-    "A data center consumes 50 MW of power at $0.08/kWh. Calculate the annual electricity cost, then convert the power to BTU/hour for cooling system sizing.",
-]
-
 
 class ToolUseAgent:
     def __init__(self, agent_name: str):
@@ -97,9 +85,10 @@ class ToolUseAgent:
 
     def run(self, task_input: str):
         system_prompt = "".join(self.config["description"])
+        tasks = TaskBank.get_batch("tool_use_agent", n=10)
         results = []
 
-        for i, task in enumerate(TASKS):
+        for i, task in enumerate(tasks):
             messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": task},

@@ -9,11 +9,12 @@ LongReasoningAgent — multi-turn chain-of-thought reasoning.
 from cerebrum.llm.apis import LLMQuery
 from cerebrum.utils.communication import send_request
 from cerebrum.config.config_manager import config as cerebrum_config
+from cerebrum.tasks.task_bank import TaskBank
 import os, json
 
 aios_kernel_url = cerebrum_config.get_kernel_url()
 
-TASKS = [
+_UNUSED_TASKS = [
     (
         "A farmer has a fox, a chicken, and a bag of grain. He needs to cross a "
         "river in a boat that can only carry him and one item at a time. If left "
@@ -118,9 +119,10 @@ class LongReasoningAgent:
 
     def run(self, task_input: str):
         system_prompt = "".join(self.config["description"])
+        tasks = TaskBank.get_batch("long_reasoning_agent", n=10)
         results = []
 
-        for i, task in enumerate(TASKS):
+        for i, task in enumerate(tasks):
             messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": task},

@@ -9,11 +9,12 @@ CodeGenAgent — code generation with long output.
 from cerebrum.llm.apis import LLMQuery
 from cerebrum.utils.communication import send_request
 from cerebrum.config.config_manager import config as cerebrum_config
+from cerebrum.tasks.task_bank import TaskBank
 import os, json
 
 aios_kernel_url = cerebrum_config.get_kernel_url()
 
-TASKS = [
+_UNUSED_TASKS = [
     "Write a Python class implementing a thread-safe LRU cache with configurable max size. Include type hints, docstrings, and unit tests.",
     "Implement a binary search tree in Rust with insert, delete, search, and in-order traversal. Handle all ownership and borrowing correctly.",
     "Write a Go HTTP middleware that implements rate limiting using a token bucket algorithm. It should support per-IP and per-API-key limits with configurable burst sizes.",
@@ -39,9 +40,10 @@ class CodeGenAgent:
 
     def run(self, task_input: str):
         system_prompt = "".join(self.config["description"])
+        tasks = TaskBank.get_batch("code_gen_agent", n=10)
         results = []
 
-        for i, task in enumerate(TASKS):
+        for i, task in enumerate(tasks):
             messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": task},
