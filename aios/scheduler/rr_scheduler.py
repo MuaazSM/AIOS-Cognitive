@@ -13,6 +13,8 @@ from aios.hooks.types.llm import LLMRequestQueueGetMessage
 from aios.hooks.types.memory import MemoryRequestQueueGetMessage
 from aios.hooks.types.tool import ToolRequestQueueGetMessage
 from aios.hooks.types.storage import StorageRequestQueueGetMessage
+from aios.syscall.llm import LLMSyscall
+from aios.hooks.modules.llm import log_llm_syscall
 
 from queue import Queue, Empty
 
@@ -98,6 +100,10 @@ class RRScheduler(BaseScheduler):
             syscall.event.set()
             syscall.set_status("done")
             syscall.set_end_time(time.time())
+            
+            # Log LLM syscalls if enabled
+            if isinstance(syscall, LLMSyscall):
+                log_llm_syscall(syscall)
 
             self.logger.log(
                 f"Completed {syscall_type} syscall for {syscall.agent_name}. "
@@ -153,6 +159,14 @@ class RRScheduler(BaseScheduler):
             responses = executor(batch)
 
             for i, syscall in enumerate(batch):
+                # Set end time for all syscalls
+                syscall.set_end_time(time.time())
+                syscall.set_status("done")
+                
+                # Log LLM syscalls if enabled
+                if isinstance(syscall, LLMSyscall):
+                    log_llm_syscall(syscall)
+                
                 logger.info(f"Completed batched {syscall_type} syscall for {syscall.agent_name}. "
                     f"Thread ID: {syscall.get_pid()}\n")
 

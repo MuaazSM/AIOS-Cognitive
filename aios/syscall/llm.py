@@ -3,8 +3,8 @@ from aios.syscall.syscall import Syscall
 
 class LLMSyscall(Syscall):
     def __init__(self, agent_name: str, query):
-        self.agent_name = agent_name
-        self.query = query
+        # Initialize parent Syscall class
+        super().__init__(agent_name, query)
         
         # Capture fields from LLMQuery object
         self.input_char_length: int = len(json.dumps(query.messages))

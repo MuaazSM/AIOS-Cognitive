@@ -5,7 +5,6 @@
         "Help users find relevant research papers, summarize key findings, and generate potential research questions."
     ],
     "tools": [
-        "demo_author/arxiv"
     ],
     "meta": {
         "author": "demo_author",
