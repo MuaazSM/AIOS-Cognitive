@@ -14,8 +14,17 @@ from aios.hooks.types.llm import (
 )
 from aios.hooks.utils.validate import validate
 from aios.hooks.stores import queue as QueueStore, processes as ProcessStore
+import json
+import os
+import threading
+from uuid import uuid4
+from datetime import datetime
 
 ids = []  # List to store process IDs
+
+# Module-level lock for thread-safe file writes
+_llm_syscall_log_lock = threading.Lock()
+
 
 @validate(LLMParams)
 def useCore(params: LLMParams) -> LLM:
@@ -62,3 +71,68 @@ def useLLMRequestQueue() -> (
         return QueueStore.isEmpty(_)
 
     return _, getMessage, addMessage, isEmpty
+
+
+def log_llm_syscall(syscall) -> None:
+    """
+    Log an LLM syscall to a JSON-Lines file after it finishes executing.
+    
+    Args:
+        syscall: The LLMSyscall object that has completed execution
+        
+    This function:
+    - Checks if logging is enabled via config.get("log_syscalls")
+    - Generates a UUID for the syscall
+    - Extracts timing and execution metrics
+    - Writes a single JSON line to logs/llm_syscalls.jsonl
+    - Thread-safe file access via module-level lock
+    - Silently catches and ignores all exceptions
+    """
+    try:
+        from aios.config.config_manager import config
+        
+        if not config.get("log_syscalls"):
+            return
+        
+        # Create logs directory if it doesn't exist
+        logs_dir = "logs"
+        os.makedirs(logs_dir, exist_ok=True)
+        
+        log_file = os.path.join(logs_dir, "llm_syscalls.jsonl")
+        
+        # Extract timing information
+        created_time = syscall.get_created_time()
+        start_time = syscall.get_start_time()
+        end_time = syscall.get_end_time()
+        
+        # Calculate latency and wait time
+        latency_ms = (end_time - start_time) * 1000 if start_time and end_time else 0
+        wait_ms = (start_time - created_time) * 1000 if start_time and created_time else 0
+        
+        # Build the log record
+        log_record = {
+            "syscall_id": str(uuid4()),
+            "agent_name": syscall.agent_name,
+            "timestamp": start_time,
+            "input_char_length": syscall.input_char_length,
+            "message_count": syscall.message_count,
+            "has_tools": syscall.has_tools,
+            "max_tokens": syscall.max_tokens,
+            "temperature": syscall.temperature,
+            "created_time": created_time,
+            "start_time": start_time,
+            "end_time": end_time,
+            "latency_ms": latency_ms,
+            "wait_ms": wait_ms,
+            "was_interrupted": syscall.was_interrupted,
+            "error": syscall.error,
+        }
+        
+        # Thread-safe file write
+        with _llm_syscall_log_lock:
+            with open(log_file, "a") as f:
+                f.write(json.dumps(log_record) + "\n")
+                
+    except Exception:
+        # Silently swallow all exceptions to prevent logging from disrupting execution
+        pass
