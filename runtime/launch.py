@@ -680,6 +680,8 @@ async def handle_query(request: QueryRequest):
                 tools=request.query_data.tools,
                 action_type=request.query_data.action_type,
                 message_return_type=request.query_data.message_return_type,
+                temperature=request.query_data.temperature,
+                max_new_tokens=request.query_data.max_new_tokens,
             )
             result_dict = await asyncio.to_thread(
                 execute_request, # The method to call
