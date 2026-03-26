@@ -18,6 +18,7 @@ Usage:
 import argparse
 import json
 import os
+import random
 import statistics
 import sys
 import time
@@ -117,6 +118,8 @@ def _run_agent_thread(spec: dict, round_num: int) -> dict:
 
     for _ in range(TASKS_PER_AGENT):
         task = TaskBank.get(agent_type)
+        # stagger arrivals to avoid thundering-herd on the kernel
+        time.sleep(random.uniform(1.0, 5.0))
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": task},
