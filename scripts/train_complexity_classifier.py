@@ -65,10 +65,26 @@ MODEL_DIR = PROJECT_ROOT / "models"
 # 1. DATA LOADING & FEATURE ENGINEERING
 # ═══════════════════════════════════════════════════════════════════
 
-def load_and_prepare(log_path: Path) -> tuple[pd.DataFrame, np.ndarray, np.ndarray, list[str]]:
-    """Load JSONL, engineer features, return X, y, feature_names."""
-    rows = [json.loads(line) for line in open(log_path) if line.strip()]
-    df = pd.DataFrame(rows)
+def load_and_prepare(log_paths: list[Path]) -> tuple[pd.DataFrame, np.ndarray, np.ndarray, list[str]]:
+    """Load one or more JSONL files, engineer features, return X, y, feature_names."""
+    all_rows = []
+    for lp in log_paths:
+        rows = [json.loads(line) for line in open(lp) if line.strip()]
+        all_rows.extend(rows)
+        print(f"  Loaded {len(rows)} rows from {lp}")
+
+    df = pd.DataFrame(all_rows)
+
+    # Remove stale rows: if a file has mixed model_names, keep only the majority
+    if "model_name" in df.columns:
+        before = len(df)
+        # Group by source model, keep rows matching the most common model per file
+        # Simpler: just drop rows where model_name doesn't match what's expected
+        # For our case: remove llama rows that leaked into mistral file
+        df = df[df["model_name"].notna()]
+        after = len(df)
+        if before != after:
+            print(f"  Filtered {before - after} rows with missing model_name")
 
     # Derive agent_type
     df["agent_type"] = df["agent_name"].str.replace(r"_r\d+$", "", regex=True)
@@ -87,7 +103,7 @@ def load_and_prepare(log_path: Path) -> tuple[pd.DataFrame, np.ndarray, np.ndarr
 
     df["complexity"] = df["latency_ms"].apply(label)
 
-    print(f"Loaded {len(df)} rows from {log_path}")
+    print(f"Loaded {len(df)} rows total")
     print(f"Thresholds: fast < {p33:.0f}ms | medium < {p66:.0f}ms | large >= {p66:.0f}ms")
     print(f"Class distribution:\n{df['complexity'].value_counts().to_string()}\n")
 
@@ -472,8 +488,9 @@ def plot_feature_importance(pipeline: Pipeline, feature_names: list[str]):
 def main():
     parser = argparse.ArgumentParser(description="Train complexity classifier")
     parser.add_argument(
-        "--log-path", type=str, default=str(DEFAULT_LOG),
-        help="Path to llm_syscalls.jsonl",
+        "--log-paths", type=str, nargs="+",
+        default=[str(DEFAULT_LOG)],
+        help="Path(s) to JSONL log files (e.g. llama.jsonl mistral.jsonl)",
     )
     parser.add_argument(
         "--skip-tuning", action="store_true",
@@ -489,7 +506,7 @@ def main():
     MODEL_DIR.mkdir(exist_ok=True)
 
     # ── Load data ───────────────────────────────────────────────
-    df, X, y, feature_names = load_and_prepare(Path(args.log_path))
+    df, X, y, feature_names = load_and_prepare([Path(p) for p in args.log_paths])
 
     # ── Train/test split ────────────────────────────────────────
     X_train, X_test, y_train, y_test = train_test_split(

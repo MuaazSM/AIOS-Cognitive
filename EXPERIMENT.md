@@ -92,11 +92,11 @@ jupyter notebook notebooks/eda.ipynb
 ## 6. Train the Complexity Classifier
 
 ```bash
-# Compare all 6 models + hyperparameter-tune the best
-python scripts/train_complexity_classifier.py
+# Train on combined multi-model data
+python scripts/train_complexity_classifier.py --log-paths llama.jsonl mistral.jsonl
 
 # Compare only (skip tuning)
-python scripts/train_complexity_classifier.py --skip-tuning
+python scripts/train_complexity_classifier.py --log-paths llama.jsonl mistral.jsonl --skip-tuning
 ```
 
 ### Models compared
@@ -120,7 +120,30 @@ python scripts/train_complexity_classifier.py --skip-tuning
 | `learning_curves.png` | Bias-variance diagnosis |
 | `feature_importances.png` | Feature ranking (tree models) |
 
-## 7. Monitor Logs (live)
+## 7. Run with CognitiveScheduler
+
+After training, activate the ML-based scheduler:
+
+```yaml
+# In aios/config/config.yaml, change:
+scheduler:
+  log_mode: "file"
+  scheduler_type: "cognitive"   # was "fifo"
+```
+
+Then restart the kernel and run the workload. The scheduler will classify each request into fast/medium/large priority queues.
+
+## 8. Benchmark FIFO vs Cognitive
+
+```bash
+# Analyze a single log with per-class breakdown
+python scripts/benchmark_schedulers.py --log llama.jsonl
+
+# Compare two runs side-by-side
+python scripts/benchmark_schedulers.py --fifo-log logs/fifo_run.jsonl --cognitive-log logs/cognitive_run.jsonl
+```
+
+## 9. Monitor Logs (live)
 
 ```bash
 # macOS / Linux
@@ -134,12 +157,17 @@ Get-Content aios\logs\llm_syscalls.jsonl -Wait -Tail 5
 
 ```
 scripts/
-  run_diverse_workload.py   # Data collection (v2, feature-rich)
-  train_complexity_classifier.py  # Model comparison + tuning
+  run_diverse_workload.py          # Data collection (v2, feature-rich)
+  train_complexity_classifier.py   # Model comparison + tuning
+  benchmark_schedulers.py          # FIFO vs Cognitive comparison
 notebooks/
-  eda.ipynb                 # Exploratory data analysis
+  eda.ipynb                        # Exploratory data analysis
 aios/
-  logs/llm_syscalls.jsonl   # Raw syscall log data
-  hooks/modules/llm.py      # Syscall logging logic
-models/                     # Trained model artifacts
+  scheduler/
+    cognitive_scheduler.py         # ML-based priority queue scheduler
+    fifo_scheduler.py              # Baseline FIFO scheduler
+  hooks/modules/llm.py             # Syscall logging logic
+  config/config.yaml               # scheduler_type: fifo | cognitive
+models/
+  complexity_classifier.pkl        # Trained Gradient Boosting model
 ```

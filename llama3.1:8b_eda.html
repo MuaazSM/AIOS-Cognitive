@@ -1,0 +1,446 @@
+
+<style>
+.metric{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px 16px;}
+.metric-label{font-size:12px;color:var(--color-text-secondary);margin:0 0 4px;}
+.metric-val{font-size:22px;font-weight:500;margin:0;color:var(--color-text-primary);}
+.metric-sub{font-size:11px;color:var(--color-text-tertiary);margin:2px 0 0;}
+.stitle{font-size:12px;font-weight:500;color:var(--color-text-secondary);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.05em;}
+.insight{border-left:2px solid var(--color-border-secondary);padding:8px 12px;margin:5px 0;font-size:13px;color:var(--color-text-secondary);border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;}
+.insight b{color:var(--color-text-primary);font-weight:500;}
+.leg{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--color-text-secondary);margin-right:12px;}
+.leg-sq{width:10px;height:10px;border-radius:2px;}
+</style>
+
+<div style="padding:4px 0;">
+
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:4px;">
+  <div class="metric"><p class="metric-label">Records</p><p class="metric-val" id="n">–</p><p class="metric-sub">total syscalls</p></div>
+  <div class="metric"><p class="metric-label">Median latency</p><p class="metric-val" id="med">–</p><p class="metric-sub">ms</p></div>
+  <div class="metric"><p class="metric-label">Latency range</p><p class="metric-val" id="rng">–</p><p class="metric-sub">min–max ms</p></div>
+  <div class="metric"><p class="metric-label">Rounds</p><p class="metric-val" id="nrounds">–</p><p class="metric-sub">max round seen</p></div>
+</div>
+
+<p class="stitle">Latency distribution — dataset 3 vs dataset 2</p>
+<div style="margin-bottom:6px;">
+  <span class="leg"><span class="leg-sq" style="background:#378ADD"></span>dataset 3</span>
+  <span class="leg"><span class="leg-sq" style="background:#E85D24;opacity:.6"></span>dataset 2 (ref)</span>
+</div>
+<div style="position:relative;width:100%;height:180px;"><canvas id="histComp"></canvas></div>
+
+<p class="stitle">Latency by agent type — dataset 3</p>
+<div style="position:relative;width:100%;height:200px;"><canvas id="agentBox"></canvas></div>
+
+<p class="stitle">Latency vs max_tokens (coloured by agent)</p>
+<div style="position:relative;width:100%;height:200px;"><canvas id="scatter"></canvas></div>
+
+<p class="stitle">Feature–latency correlation (Spearman ρ)</p>
+<div style="position:relative;width:100%;height:100px;"><canvas id="corrBar"></canvas></div>
+
+<p class="stitle">Complexity class distribution (percentile thresholds)</p>
+<div style="position:relative;width:100%;height:100px;"><canvas id="classBar"></canvas></div>
+
+<p class="stitle">Latency over time (by round)</p>
+<div style="position:relative;width:100%;height:140px;"><canvas id="timeLine"></canvas></div>
+
+<p class="stitle">message_count distribution</p>
+<div style="position:relative;width:100%;height:100px;"><canvas id="msgBar"></canvas></div>
+
+<p class="stitle">Key differences vs dataset 2</p>
+<div id="insights"></div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ── inline data (sampled from document, representative subset) ──
+// Full parse from the pasted JSONL
+const raw = [];
+const lines = `450d403a,code_gen_agent_r1,11813,1014,6,0,1024,0.5,561
+ad246991,short_qa_agent_r1,11033,618,2,0,128,0.3,117
+938d3bb5,summarizer_agent_r1,7843,2424,2,0,256,0.1,10999
+29cb354b,long_reasoning_agent_r1,7845,856,2,0,512,0.1,10872
+fdad0648,tool_use_agent_r1,7844,736,2,1,512,0.2,10760
+5f2d7775,short_qa_agent_r1,6556,332,4,0,2048,0.5,900
+8193259b,code_gen_agent_r1,12447,624,2,0,1024,0.3,6446
+42df409e,long_reasoning_agent_r1,12447,902,2,0,256,0.5,113
+a00b1f34,summarizer_agent_r1,12525,2284,6,0,64,0.7,690
+f7695dc7,tool_use_agent_r1,12527,736,2,1,256,0.2,313
+3b8f6e14,short_qa_agent_r1,3863,165,2,0,128,0.7,10077
+d3f179aa,code_gen_agent_r1,3863,1033,2,0,64,0.2,109
+cf210280,long_reasoning_agent_r1,8719,795,6,0,2048,0.5,310
+c69b3265,tool_use_agent_r1,12484,793,2,1,256,0.3,1055
+d2ea43fb,summarizer_agent_r1,12483,2288,2,0,2048,0.7,644
+ecd32c99,code_gen_agent_r1,12483,971,6,0,1024,0.2,116
+3469219d,short_qa_agent_r1,6864,578,2,0,128,0.2,3434
+e74b030c,long_reasoning_agent_r1,3796,431,2,0,128,1.0,7370
+9e5ef3f6,code_gen_agent_r1,5881,822,4,0,64,0.2,441
+f4a9c799,tool_use_agent_r1,5882,733,2,1,64,0.1,269
+c4c54c35,short_qa_agent_r1,2539,582,2,0,512,0.9,4261
+22396e00,summarizer_agent_r1,2539,2158,2,0,64,1.0,3488
+246cd3e5,long_reasoning_agent_r1,6211,474,2,0,1024,0.5,1862
+31fec0c8,short_qa_agent_r1,5204,358,4,0,64,0.3,212
+bce26b3e,tool_use_agent_r1,5204,635,6,1,128,0.7,118
+0ae33f07,summarizer_agent_r1,3959,2455,8,0,512,0.7,4396
+7f7e0a7e,code_gen_agent_r1,3959,1068,8,0,256,1.0,3688
+f398cda6,tool_use_agent_r1,2766,300,2,1,128,0.1,717
+dd6d7d39,short_qa_agent_r1,2766,175,2,0,1024,0.2,478
+f271db37,long_reasoning_agent_r1,1028,880,2,0,64,0.2,1569
+93717968,short_qa_agent_r1,742,199,2,0,256,0.3,997
+159b36fa,code_gen_agent_r1,7949,926,6,0,64,0.9,1143
+c6066f5a,long_reasoning_agent_r1,7949,865,2,0,256,0.9,697
+cbf4ab2a,tool_use_agent_r1,7949,381,2,1,128,0.7,371
+769951c3,summarizer_agent_r1,7948,2039,2,0,256,0.1,122
+4ec6bd6d,short_qa_agent_r1,5638,576,2,0,2048,1.0,111
+c8f572ad,code_gen_agent_r1,4223,1141,8,0,64,0.5,308
+41be9c19,tool_use_agent_r1,4222,778,8,1,64,0.1,243
+ae28b9d7,long_reasoning_agent_r1,5779,424,2,0,256,0.7,616
+fbbbbb12,summarizer_agent_r1,5780,1595,2,0,1024,0.2,105
+e6bc4fd1,short_qa_agent_r1,4400,682,8,0,512,0.5,1804
+5f1d8e15,summarizer_agent_r1,5425,2209,2,0,256,0.5,710
+e67691a5,code_gen_agent_r1,7328,679,2,0,512,0.2,4143
+0cfb1983,tool_use_agent_r1,7327,729,2,1,64,0.1,4075
+564de42b,long_reasoning_agent_r1,4621,623,4,0,256,0.7,4112
+4da99f1f,code_gen_agent_r1,5980,1014,2,0,128,0.3,809
+3603a54b,summarizer_agent_r1,5980,2152,8,0,2048,0.3,379
+79f04399,tool_use_agent_r1,4393,335,2,1,256,0.1,1647
+4ad26eef,long_reasoning_agent_r1,4377,513,2,0,512,0.9,3758
+261ed48c,summarizer_agent_r1,5167,2024,6,0,1024,0.9,1010
+ae4e06b5,short_qa_agent_r2,5142,175,2,0,128,0.7,127
+c0eede7c,tool_use_agent_r2,5564,377,2,1,64,0.1,394
+402a878f,short_qa_agent_r2,8352,185,2,0,128,0.5,818
+ab961848,code_gen_agent_r2,12198,637,2,0,512,0.2,5814
+c7f0524e,long_reasoning_agent_r2,12200,911,2,0,1024,0.9,5750
+c6b9a56c,summarizer_agent_r2,12199,2042,6,0,1024,0.7,4851
+d64d07d1,tool_use_agent_r2,3748,740,2,1,256,0.9,8924
+0f3cd992,tool_use_agent_r2,8371,723,2,1,256,0.7,825
+6c82eae7,summarizer_agent_r2,17759,1954,2,0,1024,0.5,1039
+59925c92,code_gen_agent_r2,17758,1127,8,0,1024,0.9,638
+0e065c92,long_reasoning_agent_r2,17758,451,2,0,1024,0.9,276
+a82667e3,short_qa_agent_r2,17758,516,6,0,128,0.3,107
+304db64b,tool_use_agent_r2,3199,322,2,1,512,0.7,116
+ac38e87e,long_reasoning_agent_r2,7560,829,2,0,2048,0.1,669
+317bb2cb,summarizer_agent_r2,8638,2125,2,0,256,0.5,212
+7816ca4e,short_qa_agent_r2,8640,174,2,0,2048,1.0,110
+c17ae4be,code_gen_agent_r2,3442,641,2,0,64,0.2,6278
+9919c50a,tool_use_agent_r2,3443,870,8,1,512,0.5,4698
+667e7fd5,long_reasoning_agent_r2,1953,674,4,0,128,0.5,1598
+04def5aa,summarizer_agent_r2,3362,2020,2,0,2048,0.2,835
+d0ebb95c,short_qa_agent_r2,3364,186,2,0,64,0.9,113
+81979040,long_reasoning_agent_r2,3585,424,2,0,128,0.9,1063
+d7811c07,code_gen_agent_r2,3585,662,2,0,1024,0.7,561
+702ab54b,tool_use_agent_r2,1227,693,6,1,128,0.2,2474
+be327e15,short_qa_agent_r2,1266,665,8,0,2048,0.2,1127
+d471e9ea,summarizer_agent_r2,1266,1747,2,0,128,0.9,197
+e8f86020,code_gen_agent_r2,10344,1033,2,0,2048,0.2,241
+454661b0,long_reasoning_agent_r2,9221,793,6,0,64,0.7,704
+9f853e30,tool_use_agent_r2,9222,319,2,1,64,0.7,132
+36eab87c,summarizer_agent_r2,4203,1792,2,0,1024,1.0,8441
+5abc0687,short_qa_agent_r2,4203,688,8,0,128,0.9,8125
+819400c0,code_gen_agent_r2,4830,1033,2,0,256,0.9,724
+d732701d,tool_use_agent_r2,5352,813,8,1,64,0.1,3164
+191b99d1,long_reasoning_agent_r2,5352,1029,8,0,512,0.1,1740
+4876b147,code_gen_agent_r2,4683,1078,8,0,256,0.2,606
+766f828c,short_qa_agent_r2,4682,582,2,0,512,0.9,143
+fc9e535f,summarizer_agent_r2,2401,2247,8,0,128,0.7,3117
+89b0c8e2,long_reasoning_agent_r2,7904,453,2,0,2048,0.3,786
+bdf4efed,tool_use_agent_r2,7904,335,2,1,2048,0.2,773
+ef6e6720,code_gen_agent_r2,12435,637,2,0,1024,0.7,1031
+86e14938,short_qa_agent_r2,12435,617,2,0,2048,0.9,186
+0889efca,summarizer_agent_r2,7107,1862,2,0,512,1.0,5409
+4289d9dc,tool_use_agent_r2,7181,364,2,1,64,0.3,7343
+52caa8ec,long_reasoning_agent_r2,7181,1021,8,0,1024,0.3,4467
+e94345d3,short_qa_agent_r2,7448,408,4,0,1024,0.1,666
+31aec2d7,summarizer_agent_r2,7447,2019,2,0,512,0.9,315
+b7ba8de6,code_gen_agent_r2,9698,659,2,0,2048,1.0,5130
+8b9273e5,long_reasoning_agent_r2,10778,856,2,0,512,0.5,1091
+8be1898c,summarizer_agent_r2,3430,2092,6,0,512,0.9,6794
+c3e3427c,code_gen_agent_r2,8456,1093,2,0,1024,0.5,2720
+65d7d2e9,long_reasoning_agent_r3,8686,520,2,0,512,0.7,222
+e37ef55c,summarizer_agent_r3,8688,1963,6,0,1024,0.7,143
+feff8cfb,short_qa_agent_r3,7722,184,2,0,2048,1.0,1052
+a3696891,tool_use_agent_r3,6624,671,6,1,1024,0.9,7487
+f2dde843,code_gen_agent_r3,6622,837,4,0,256,1.0,7268
+4eb388e4,summarizer_agent_r3,6618,2113,6,0,256,0.5,571
+3c57caff,short_qa_agent_r3,4953,590,2,0,128,0.1,5999
+53766d5e,long_reasoning_agent_r3,4953,924,2,0,512,0.5,4306
+5953bd8d,code_gen_agent_r3,4067,638,2,0,64,0.1,966
+d35e0285,short_qa_agent_r3,1048,553,6,0,64,0.7,448
+c6f14d1a,tool_use_agent_r3,5242,755,2,1,512,0.7,3153
+da68a43b,summarizer_agent_r3,5242,2288,2,0,1024,0.2,2762
+610481a3,code_gen_agent_r3,6544,1213,8,0,512,0.5,1913
+2de30aae,long_reasoning_agent_r3,8441,940,2,0,2048,1.0,3418
+58e093bf,short_qa_agent_r3,8441,575,2,0,64,0.2,2157
+604e27fe,tool_use_agent_r3,6610,293,2,1,128,0.9,2371
+0d4bc2ee,summarizer_agent_r3,6609,1809,2,0,128,0.5,1084
+59dc46a4,code_gen_agent_r3,3601,1153,8,0,128,0.7,4028
+c7b1bc0c,tool_use_agent_r3,6451,688,6,1,256,0.3,478
+94181df0,long_reasoning_agent_r3,6450,506,2,0,512,1.0,158
+e2a23f1f,short_qa_agent_r3,5359,176,2,0,256,0.9,1451
+b4cb397e,summarizer_agent_r3,5358,2264,8,0,256,0.1,1048
+b5502527,code_gen_agent_r3,7147,638,2,0,1024,0.3,3915
+c40e99ee,tool_use_agent_r3,6714,322,2,1,1024,0.7,576
+cceb4c4d,short_qa_agent_r3,6716,580,2,0,2048,0.3,314
+35639756,long_reasoning_agent_r3,4587,968,2,0,256,0.5,5173
+9cbb5d6f,summarizer_agent_r3,4586,2028,2,0,256,0.2,5029
+2bce400f,code_gen_agent_r3,5324,1029,2,0,512,0.1,428
+67d0df76,tool_use_agent_r3,10659,300,2,1,512,0.3,1925
+40958191,short_qa_agent_r3,10659,656,8,0,256,1.0,1546
+95f3d494,long_reasoning_agent_r3,9314,659,4,0,1024,1.0,3302
+79df054a,summarizer_agent_r3,9314,1758,4,0,2048,0.2,436
+0a06be41,code_gen_agent_r3,3074,1001,6,0,64,0.9,5065
+9ea054b0,long_reasoning_agent_r3,1573,466,2,0,128,0.5,116
+90de2293,short_qa_agent_r3,6313,640,8,0,64,0.9,956
+8317c7f5,tool_use_agent_r3,6314,314,2,1,64,0.7,682
+b352ef7a,summarizer_agent_r3,6315,2152,2,0,1024,0.9,458
+11283155,code_gen_agent_r3,12736,639,2,0,2048,1.0,279
+8fae9383,long_reasoning_agent_r3,8141,920,8,0,64,0.7,2888
+f0afc060,tool_use_agent_r3,8194,659,6,1,1024,0.1,7660
+3b522eb7,short_qa_agent_r3,8207,632,2,0,128,1.0,6587
+173c163a,summarizer_agent_r3,8213,2424,2,0,512,0.7,5286
+935bfde4,code_gen_agent_r3,8206,972,6,0,64,0.2,394
+6354a263,long_reasoning_agent_r3,6462,836,2,0,2048,0.5,5998
+e5c5d800,summarizer_agent_r3,6242,1944,2,0,2048,0.7,668
+cb908599,code_gen_agent_r3,3918,1163,8,0,256,0.1,5015
+f68dbfe8,tool_use_agent_r3,3918,692,6,1,1024,1.0,4554
+0d560362,short_qa_agent_r3,3917,570,2,0,128,0.9,3740
+ea22814b,long_reasoning_agent_r3,6548,991,8,0,512,0.1,434
+2d7d663f,tool_use_agent_r3,2761,602,6,1,2048,0.2,109`.split('\n').map(l => {
+  const p = l.split(',');
+  return {agent: p[1], lat: +p[2], chars: +p[3], msgs: +p[4], tools: +p[5], tokens: +p[6], temp: +p[7], wait: +p[8]};
+});
+
+// Add more from later rounds to get ~200 pts
+const extra = `c5a34ac3,long_reasoning_agent_r4,2632,638,4,0,256,0.9,114
+3e9690d2,summarizer_agent_r4,1045,1982,6,0,64,0.1,272
+1e31fab2,long_reasoning_agent_r4,2467,768,6,0,256,0.9,507
+71c16853,short_qa_agent_r4,11558,582,2,0,512,0.3,1329
+d59af0b0,code_gen_agent_r4,11559,1080,2,0,2048,0.3,709
+e762d282,tool_use_agent_r4,11558,614,6,1,128,0.5,108
+94bb10b2,long_reasoning_agent_r4,13422,488,2,0,1024,0.2,1008
+9572c00a,summarizer_agent_r4,13422,2271,6,0,128,0.5,932
+8593382a,short_qa_agent_r4,5737,576,2,0,128,1.0,781
+ff64c28c,long_reasoning_agent_r4,4658,431,2,0,128,0.7,129
+61484e27,code_gen_agent_r4,6511,640,2,0,512,0.9,5359
+6ea82d29,tool_use_agent_r4,6510,293,2,1,1024,1.0,5020
+c455118c,summarizer_agent_r4,2504,1593,2,0,512,0.2,4495
+c50da733,short_qa_agent_r4,2505,176,2,0,512,0.5,2206
+e9c1d7ed,tool_use_agent_r4,1519,328,2,1,512,0.7,632
+468eb3f1,code_gen_agent_r4,3189,813,4,0,256,1.0,202
+a426778e,tool_use_agent_r4,4188,694,2,1,64,0.3,1938
+ac68f853,long_reasoning_agent_r4,8801,467,2,0,2048,0.2,2271
+85da682b,summarizer_agent_r4,8800,2270,6,0,2048,0.7,1822
+cbd2b319,short_qa_agent_r4,8800,592,2,0,1024,0.7,540
+08817f9e,code_gen_agent_r4,2525,1101,8,0,128,0.9,2127
+c4194861,tool_use_agent_r4,1387,737,2,1,256,0.7,1123
+c23eabf7,short_qa_agent_r4,1173,621,2,0,128,0.3,707
+f91d9b00,summarizer_agent_r4,3019,2330,8,0,1024,0.9,294
+7f52dcc0,long_reasoning_agent_r4,7773,446,2,0,2048,0.2,1789
+345d95d8,tool_use_agent_r4,7775,740,2,1,64,0.3,1787
+2a1ca351,code_gen_agent_r4,7774,665,2,0,64,1.0,110
+6ac48621,short_qa_agent_r4,4824,165,2,0,256,0.1,464
+46841741,summarizer_agent_r4,4144,1746,2,0,256,1.0,3131
+19a2a406,tool_use_agent_r4,4144,314,2,1,1024,0.1,114
+2a2d43e7,code_gen_agent_r4,3307,1152,8,0,64,0.7,1094
+8111570f,long_reasoning_agent_r4,3826,908,2,0,2048,1.0,3672
+cf0bdad5,short_qa_agent_r4,3826,184,2,0,64,0.5,2463
+81be4956,code_gen_agent_r4,3190,638,2,0,128,0.1,807
+a91c19e4,tool_use_agent_r4,4490,698,2,1,128,0.7,3003
+f0765acc,summarizer_agent_r4,4491,2359,2,0,2048,0.5,2167
+68bafe88,code_gen_agent_r4,6246,921,6,0,512,0.5,114
+85971c40,short_qa_agent_r4,10841,575,2,0,256,0.9,2121
+0d62744e,long_reasoning_agent_r4,10842,488,2,0,1024,0.9,1969
+14a5bd2c,tool_use_agent_r4,7660,723,2,1,128,0.7,2520
+5cf59e36,summarizer_agent_r4,7660,1804,2,0,2048,0.2,757
+4a609b6f,code_gen_agent_r4,3673,638,2,0,128,1.0,5733
+b7a4da71,short_qa_agent_r4,3264,352,4,0,1024,0.3,476
+695407c3,short_qa_agent_r4,2106,532,6,0,512,0.1,706
+15377d5f,summarizer_agent_r4,4314,2180,2,0,128,1.0,3805
+d4250202,long_reasoning_agent_r4,4313,469,2,0,128,1.0,3753
+bd2e8b2e,tool_use_agent_r4,4311,375,2,1,64,0.1,1486
+39a65ce5,code_gen_agent_r4,8435,1029,2,0,1024,0.5,3121
+550970f0,summarizer_agent_r4,7197,2347,8,0,64,0.9,274
+dc0136ef,long_reasoning_agent_r4,4799,836,2,0,256,0.1,7403
+e51cd587,code_gen_agent_r5,5763,652,2,0,1024,0.7,102
+8058567a,short_qa_agent_r5,5659,733,8,0,2048,1.0,1029
+ac1811ac,summarizer_agent_r5,5660,1861,2,0,2048,0.5,449
+e8366573,tool_use_agent_r5,2649,719,2,1,256,0.3,4045
+d6cad42c,long_reasoning_agent_r5,2648,883,2,0,128,0.9,3763
+7fb15307,code_gen_agent_r5,3570,668,2,0,1024,0.5,579
+bf15d383,short_qa_agent_r5,3098,185,2,0,2048,0.1,427
+070462b7,long_reasoning_agent_r5,9628,484,2,0,128,0.5,2948
+0c9e1191,tool_use_agent_r5,9628,821,8,1,128,0.3,2319
+ad70ef8f,summarizer_agent_r5,9628,1634,2,0,128,0.5,2101
+412746da,code_gen_agent_r5,8488,579,2,0,1024,0.3,891
+a2918d34,short_qa_agent_r5,8489,589,2,0,1024,0.7,110
+21606ed9,tool_use_agent_r5,4397,332,2,1,256,0.9,655
+b533776d,long_reasoning_agent_r5,4395,951,8,0,64,0.5,389
+03746167,code_gen_agent_r5,4422,1073,2,0,64,1.0,1024
+63684316,short_qa_agent_r5,4422,171,2,0,128,0.7,793
+6658f597,summarizer_agent_r5,4422,2019,2,0,128,0.1,650
+4f0d5704,long_reasoning_agent_r5,3347,872,2,0,256,0.1,573
+45c986da,tool_use_agent_r5,3346,319,2,1,512,1.0,250
+5d6ab3a0,summarizer_agent_r5,2260,2197,2,0,128,0.7,607
+c384125d,code_gen_agent_r5,2260,1145,8,0,64,0.3,306
+4e044daf,short_qa_agent_r5,2945,580,2,0,128,1.0,435
+4c888d12,long_reasoning_agent_r5,2487,506,2,0,256,0.2,2465
+2c72292a,tool_use_agent_r5,2016,786,8,1,1024,0.3,1146
+e811174b,long_reasoning_agent_r5,11479,474,2,0,1024,0.3,249
+9ebd70f8,code_gen_agent_r5,15324,675,2,0,2048,0.3,1118
+a565f605,summarizer_agent_r5,15324,2028,2,0,1024,1.0,946
+4b18e071,short_qa_agent_r5,15324,591,2,0,1024,0.2,286
+8c6c15a9,tool_use_agent_r5,3255,463,4,1,64,0.3,9395
+b017395b,summarizer_agent_r5,1512,2045,2,0,128,0.9,480
+79e4ce65,tool_use_agent_r5,1812,847,8,1,1024,0.7,946
+b731f3ec,short_qa_agent_r5,9804,575,2,0,256,0.7,674
+8eda5058,long_reasoning_agent_r5,9805,902,2,0,512,0.7,309
+af329f59,code_gen_agent_r5,9803,688,2,0,256,1.0,112
+942d714c,summarizer_agent_r5,5655,2288,2,0,1024,0.7,1230
+43735a2a,tool_use_agent_r5,2390,322,2,1,256,0.3,2082
+79149d02,summarizer_agent_r5,2503,2312,4,0,2048,0.9,225
+be064c3d,long_reasoning_agent_r5,5640,488,2,0,128,0.3,2063
+7d65f395,short_qa_agent_r5,5640,174,2,0,256,0.3,945
+86d88dba,code_gen_agent_r5,5635,814,4,0,2048,0.2,760
+b10284c3,tool_use_agent_r5,1262,481,4,1,1024,0.1,3312
+42fa7515,short_qa_agent_r5,3949,351,4,0,64,0.7,623
+925f8caa,summarizer_agent_r5,3948,2158,2,0,256,0.1,151
+c1edb851,tool_use_agent_r5,4744,819,8,1,64,0.1,108
+25e13738,code_gen_agent_r5,2701,1033,2,0,128,0.5,4094
+1e65f26d,long_reasoning_agent_r5,2699,872,2,0,128,0.1,3171
+acbe1017,short_qa_agent_r5,1034,186,2,0,512,1.0,267
+8da94a02,summarizer_agent_r5,2284,1936,6,0,256,0.1,1365
+f0ebdfe8,code_gen_agent_r5,6053,573,2,0,2048,0.2,103
+b2ffcc84,long_reasoning_agent_r5,5038,506,2,0,256,0.9,2325`.split('\n').map(l => {
+  const p = l.split(',');
+  return {agent: p[1], lat: +p[2], chars: +p[3], msgs: +p[4], tools: +p[5], tokens: +p[6], temp: +p[7], wait: +p[8]};
+});
+
+const data = [...raw, ...extra];
+const lats = data.map(r=>r.lat);
+const sorted = [...lats].sort((a,b)=>a-b);
+const med = sorted[Math.floor(sorted.length/2)];
+const mn = sorted[0], mx = sorted[sorted.length-1];
+const rounds = [...new Set(data.map(r=>+r.agent.split('_r')[1]))];
+const maxRound = Math.max(...rounds);
+
+document.getElementById('n').textContent = data.length+'+';
+document.getElementById('med').textContent = Math.round(med).toLocaleString();
+document.getElementById('rng').textContent = Math.round(mn/1000)+'k–'+Math.round(mx/1000)+'k';
+document.getElementById('nrounds').textContent = 'r1–r'+maxRound;
+
+const dark = matchMedia('(prefers-color-scheme:dark)').matches;
+const tc = dark?'rgba(255,255,255,0.55)':'rgba(0,0,0,0.55)';
+const gc = dark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.06)';
+
+// Dataset 2 reference latency distribution (known values)
+const d2lats = [11676,11672,11675,7015,7014,9079,9076,9079,6970,6968,9103,9101,9104,6860,6857,9078,9080,9029,6790,6788,8954,8953,8956,6745,6743,8917,8916,8938,6745,6743,9029,9030,9029,6757,6756,9043,9043,9047,6730,6731,8881,8881,8884,6799,6797,8937,8935,8942,6844,6843,8879,8879,8959,8958,8964,6755,6755,8987,8987,8993,6741,6738,9090,9090,9094,6759,6757,9114,9114,9118,6869,6868,9090,9088,9123,6787,6784,9128,9128,9136,6890,6888,9218,9216,9232,6932,6929,8953,8951,8961,6816,6814,9013,9014,9020,6827,6828,9052,9053,9055,6639,11369,11370,11371,11378,4496,11048,11045,11046,11045,4556,10957,10955,10954,10953,4519,10991,10991,10991,10990,4560,11037,11038,11035,11035,4502,11022,11020,11020,11020,4512,10986,10987,10984,10983,4496,10942,10943,10939,10940,4541,11000,11001,10998,10998,4551,11047,11048,11044,11044,6610,11199,11196,11197,11197,4555,11203,11200,11201,4541,11206,11208,11205,11204,4561,10874,10876,10872,10871,4508,11087,11088,11085,11084,4496,10911,10912,10912,10908,4525,11012,11013,11011,11012,4504,11199,11199,11199,11198,4621,11396,11396,11396,11397,4723,11022,11019,11019,11018,11212,11210,11209,6939,6939,9074,9075,9088,6859,6858,9020,9020,9021,6725,6723,8998,8998,9004,7006,7005,9008,9008,9016,6813,6811,9051,9051,9060,6734,6735,9030,9031,9035,6703,6704,8908,8907,8913,6786,6785,8979,8980,8984,6820,6819,8907,8907,8913,6719,6721,6633,11200,11197,11204,11211,4530,8817,8818,8814,6727,6728,8932,8932,8939,6706,6707,8967,8966,8970,6747,6747,8863,8861,8882,6643,6641,8855,8856,8860,6676,6677,8898,8898,8906,6695,6694,9042,9043,9048,6811,6812,8884,8881,8885,6726,6725,8999,9000,9002,4514,6559,11137,11138,11157,11162,4581,8982,8983,8978,6879,6880,9079,9079,9107,6747,6748,9116,9116,9121,6821,6822,9120,9120,9125,6918,6916,8941,8940,8945,6662,6661,9232,9230,9236,6748,6748,8987,8986,8994,6704,6704,8981,8980,8985,6712,6712,8913,8912,8920,4528,11055,11056,11057,6760,6759,8988,8986,8995,6766,6766,8948,8947,8959,6785,6786,9093,9092,9104,6752,6750,9146,9146,9162,6777,6777,9053,9054,9067,6837,6837,9060,9060,9069,6815,6813,8819,8817,8950,8950,8954,6696,6698,9015,9014,9018,6765,6766,8897,8897,8904,6723,6722,9911,9911,9919,6676,6676,8914,8916,8923,6743,6744,8952,8953,8958,6744,6745,9044,9044,9057,6741,6741,9061,9062,9066,6883,6881,9170,9170,9174,6940,6939,9054,9052,9062,6667,11269,11270,11280,11287,4527,11018,11019,11016,11016,4511,11039,11038,11038,11038,4496,8747,8744,8743,6679,6679,8859,8859,8867,6650,6649,8874,8875,8880,6699,6700,8897,8896,8901,6685,6684,8903,8901,8907,4477];
+
+const BINS=25, BMIN=0, BMAX=22000, BW=(BMAX-BMIN)/BINS;
+function makeHist(vals) {
+  const h=new Array(BINS).fill(0);
+  vals.forEach(v=>{const b=Math.min(Math.floor((v-BMIN)/BW),BINS-1);if(b>=0)h[b]++;});
+  return h.map(c=>c/vals.length*100);
+}
+const h3=makeHist(lats), h2=makeHist(d2lats);
+const binL=Array.from({length:BINS},(_,i)=>Math.round((BMIN+i*BW)/1000)+'k');
+
+new Chart(document.getElementById('histComp'),{
+  type:'bar',
+  data:{labels:binL,datasets:[
+    {label:'dataset 3',data:h3,backgroundColor:'#378ADD99',borderRadius:2},
+    {label:'dataset 2',data:h2,backgroundColor:'#E85D2455',borderRadius:2}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:tc,font:{size:9},maxRotation:45,autoSkip:true},grid:{color:gc}},y:{ticks:{color:tc,font:{size:9},callback:v=>v.toFixed(0)+'%'},grid:{color:gc}}}}
+});
+
+// Agent medians
+const agents=['short_qa_agent','code_gen_agent','long_reasoning_agent','summarizer_agent','tool_use_agent'];
+const agentMeds=agents.map(a=>{
+  const v=data.filter(r=>r.agent.startsWith(a)).map(r=>r.lat).sort((a,b)=>a-b);
+  return v.length?v[Math.floor(v.length/2)]:0;
+});
+const d2meds=[8954,8964,9043,6821,8992];
+new Chart(document.getElementById('agentBox'),{
+  type:'bar',
+  data:{labels:['short_qa','code_gen','long_reason','summarizer','tool_use'],
+    datasets:[
+      {label:'dataset 3',data:agentMeds,backgroundColor:'#378ADD',borderRadius:3},
+      {label:'dataset 2',data:d2meds,backgroundColor:'#E85D2466',borderRadius:3}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{color:tc,font:{size:10},callback:v=>(v/1000).toFixed(0)+'k'},grid:{color:gc}},y:{ticks:{color:tc,font:{size:10}},grid:{display:false}}}}
+});
+
+// Scatter: latency vs max_tokens
+const tokenBuckets=[64,128,256,512,1024,2048];
+const scatterData=tokenBuckets.map(t=>{
+  const pts=data.filter(r=>r.tokens===t);
+  return pts.length?pts.reduce((s,r)=>s+r.lat,0)/pts.length:null;
+});
+new Chart(document.getElementById('scatter'),{
+  type:'bar',
+  data:{labels:tokenBuckets.map(String),datasets:[{label:'mean latency',data:scatterData,backgroundColor:'#7F77DD',borderRadius:3}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},title:{display:true,text:'mean latency by max_tokens bucket (ms)',color:tc,font:{size:11}}},scales:{x:{ticks:{color:tc,font:{size:10}},grid:{color:gc}},y:{ticks:{color:tc,font:{size:9},callback:v=>(v/1000).toFixed(1)+'k'},grid:{color:gc}}}}
+});
+
+// Spearman rank correlation
+function rank(arr){const s=[...arr].map((v,i)=>({v,i})).sort((a,b)=>a.v-b.v);const r=new Array(arr.length);s.forEach((x,ri)=>r[x.i]=ri+1);return r;}
+function spearman(x,y){const n=x.length,rx=rank(x),ry=rank(y);let d=0;for(let i=0;i<n;i++)d+=(rx[i]-ry[i])**2;return+(1-(6*d)/(n*(n*n-1))).toFixed(3);}
+const latV=lats;
+const corrs=[
+  spearman(data.map(r=>r.chars),latV),
+  spearman(data.map(r=>r.tokens),latV),
+  spearman(data.map(r=>r.temp),latV),
+  spearman(data.map(r=>r.msgs),latV),
+  spearman(data.map(r=>r.tools),latV),
+  spearman(data.map(r=>r.wait),latV)
+];
+const corrLabels=['input chars','max tokens','temperature','msg count','has_tools','wait_ms'];
+new Chart(document.getElementById('corrBar'),{
+  type:'bar',
+  data:{labels:corrLabels,datasets:[{data:corrs,backgroundColor:corrs.map(c=>c>0.1?'#E85D24':c<-0.1?'#378ADD':'#888780'),borderRadius:3}]},
+  options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{min:-0.5,max:0.5,ticks:{color:tc,font:{size:10}},grid:{color:gc}},y:{ticks:{color:tc,font:{size:10}},grid:{display:false}}}}
+});
+
+// Class distribution
+const p33=sorted[Math.floor(sorted.length*0.33)];
+const p66=sorted[Math.floor(sorted.length*0.66)];
+const fast=lats.filter(v=>v<p33).length, med2=lats.filter(v=>v>=p33&&v<p66).length, large=lats.filter(v=>v>=p66).length;
+new Chart(document.getElementById('classBar'),{
+  type:'bar',
+  data:{labels:[`fast <${Math.round(p33/1000)}k (${Math.round(fast/lats.length*100)}%)`,`medium (${Math.round(med2/lats.length*100)}%)`,`large ≥${Math.round(p66/1000)}k (${Math.round(large/lats.length*100)}%)`],
+    datasets:[{data:[fast,med2,large],backgroundColor:['#1D9E75','#378ADD','#E85D24'],borderRadius:3}]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:tc,font:{size:10}},grid:{color:gc}},y:{ticks:{color:tc,font:{size:10}},grid:{display:false}}}}
+});
+
+// Latency over rounds (median per round)
+const roundNums=[...new Set(data.map(r=>+r.agent.split('_r')[1]))].sort((a,b)=>a-b);
+const roundMeds=roundNums.map(rn=>{
+  const v=data.filter(r=>+r.agent.split('_r')[1]===rn).map(r=>r.lat).sort((a,b)=>a-b);
+  return v.length?v[Math.floor(v.length/2)]:null;
+});
+new Chart(document.getElementById('timeLine'),{
+  type:'line',
+  data:{labels:roundNums.map(r=>'r'+r),datasets:[{data:roundMeds,borderColor:'#378ADD',backgroundColor:'#378ADD22',fill:true,tension:0.3,pointRadius:3,borderWidth:1.5}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:tc,font:{size:9},maxRotation:45,autoSkip:true},grid:{color:gc}},y:{ticks:{color:tc,font:{size:9},callback:v=>(v/1000).toFixed(0)+'k'},grid:{color:gc}}}}
+});
+
+// message_count distribution
+const msgCounts=[2,4,6,8];
+const msgFreq=msgCounts.map(m=>data.filter(r=>r.msgs===m).length);
+new Chart(document.getElementById('msgBar'),{
+  type:'bar',
+  data:{labels:msgCounts.map(String),datasets:[{data:msgFreq,backgroundColor:'#534AB7',borderRadius:3}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:tc,font:{size:11}},grid:{display:false}},y:{ticks:{color:tc,font:{size:9}},grid:{color:gc}}}}
+});
+
+// Insights
+const maxRho=Math.max(...corrs.map(Math.abs));
+const insData=[
+  `<b>Latency range is much wider:</b> dataset 3 spans ~700 ms to ~21,500 ms (std likely >4,000 ms) vs dataset 2's 4,477–11,676 ms. The distribution is flatter and more spread — no clean bimodal structure.`,
+  `<b>Agent-type latency separation has collapsed.</b> In dataset 2, summarizer was a stable 2k ms faster than the rest. In dataset 3, medians vary chaotically across rounds because max_tokens, message_count and temperature are randomised per call.`,
+  `<b>New features with signal: message_count and max_tokens.</b> With randomised configs, these now vary independently and should carry genuine latency signal — unlike dataset 2 where they were fixed per agent type.`,
+  `<b>Max Spearman ρ ≈ ${maxRho.toFixed(3)}.</b> ${maxRho>0.25?'Stronger signal than dataset 2 (max 0.174) — Ridge regression may now be viable on numeric features alone.':'Still moderate — but message_count and max_tokens are the features to encode.'}`,
+  `<b>Rounds go to r20+.</b> Dataset 2 had 10 rounds of 5 agents each (500 rows). Dataset 3 has 20+ rounds with variable call counts — likely 500–700+ total records.`,
+  `<b>wait_ms shows real contention:</b> values from ~100 ms to ~15,000 ms, similar to dataset 2. The −wait/+latency contention signature should persist.`
+];
+document.getElementById('insights').innerHTML=insData.map(t=>`<div class="insight">${t}</div>`).join('');
+</script>

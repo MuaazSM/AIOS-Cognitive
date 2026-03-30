@@ -18,6 +18,11 @@ from aios.hooks.modules.tool import useToolManager
 from aios.hooks.modules.agent import useFactory
 from aios.hooks.modules.scheduler import fifo_scheduler_nonblock as fifo_scheduler
 from aios.hooks.modules.scheduler import rr_scheduler_nonblock as rr_scheduler
+from aios.hooks.modules.scheduler import cognitive_scheduler_nonblock as cognitive_scheduler
+from aios.hooks.modules.scheduler import sjf_scheduler_nonblock as sjf_scheduler
+from aios.hooks.modules.scheduler import priority_scheduler_nonblock as priority_scheduler
+from aios.hooks.modules.scheduler import mlfq_scheduler_nonblock as mlfq_scheduler
+from aios.hooks.modules.scheduler import hrrn_scheduler_nonblock as hrrn_scheduler
 
 from aios.syscall.syscall import useSysCall
 from aios.config.config_manager import config
@@ -225,31 +230,36 @@ def initialize_scheduler(components: dict, scheduler_config: dict) -> Any:
         # if use_context and isinstance(scheduler_config.get("scheduler_type"), str) and scheduler_config.get("scheduler_type").lower() == "fifo":
         #     raise ValueError("FIFO scheduler cannot be used with context management enabled. Please either disable context management or use Round Robin scheduler.")
 
-        # Round Robin scheduler
-        if use_context:
-            scheduler = rr_scheduler(
-                llm=components["llms"],   
-                memory_manager=components["memory"],
-                storage_manager=components["storage"],
-                tool_manager=components["tool"],
-                log_mode=scheduler_config.get("log_mode", "console"),
-                get_llm_syscall=None,
-                get_memory_syscall=None,
-                get_storage_syscall=None,
-                get_tool_syscall=None,
-            )
+        scheduler_type = scheduler_config.get("scheduler_type", "fifo")
+        common_kwargs = dict(
+            llm=components["llms"],
+            memory_manager=components["memory"],
+            storage_manager=components["storage"],
+            tool_manager=components["tool"],
+            log_mode=scheduler_config.get("log_mode", "console"),
+            get_llm_syscall=None,
+            get_memory_syscall=None,
+            get_storage_syscall=None,
+            get_tool_syscall=None,
+        )
+
+        SCHEDULER_MAP = {
+            "fifo": ("FIFO", fifo_scheduler),
+            "cognitive": ("Cognitive (ML-based)", cognitive_scheduler),
+            "sjf": ("Shortest Job First", sjf_scheduler),
+            "priority": ("Static Priority", priority_scheduler),
+            "mlfq": ("Multi-Level Feedback Queue", mlfq_scheduler),
+            "hrrn": ("Highest Response Ratio Next", hrrn_scheduler),
+        }
+
+        if scheduler_type in SCHEDULER_MAP:
+            name, factory = SCHEDULER_MAP[scheduler_type]
+            print(f"Using {name} scheduler")
+            scheduler = factory(**common_kwargs)
+        elif use_context:
+            scheduler = rr_scheduler(**common_kwargs)
         else:
-            scheduler = fifo_scheduler(
-                llm=components["llms"],   
-                memory_manager=components["memory"],
-                storage_manager=components["storage"],
-                tool_manager=components["tool"],
-                log_mode=scheduler_config.get("log_mode", "console"),
-                get_llm_syscall=None,
-                get_memory_syscall=None,
-                get_storage_syscall=None,
-                get_tool_syscall=None,
-            )
+            scheduler = fifo_scheduler(**common_kwargs)
         scheduler.start()
         print("✅ Scheduler initialized and started")
         return scheduler
