@@ -111,10 +111,16 @@ def log_llm_syscall(syscall) -> None:
         latency_ms = (end_time - start_time) * 1000 if start_time and end_time else 0
         wait_ms = (start_time - created_time) * 1000 if start_time and created_time else 0
         
+        # Get model name from config (for multi-model experiments)
+        llms_cfg = config_dict.get("llms", {})
+        models_list = llms_cfg.get("models", [])
+        model_name = models_list[0].get("name", "unknown") if models_list else "unknown"
+
         # Build the log record
         log_record = {
             "syscall_id": str(uuid4()),
             "agent_name": syscall.agent_name,
+            "model_name": model_name,
             "timestamp": start_time,
             "input_char_length": syscall.input_char_length,
             "message_count": syscall.message_count,
