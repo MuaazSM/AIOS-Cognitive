@@ -1,0 +1,107 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{mei2025aios}
+\citation{yao2023react,shinn2023reflexion}
+\citation{mei2025aios}
+\citation{mei2025aios}
+\citation{silberschatz2018os}
+\citation{mei2025aios}
+\@writefile{toc}{\contentsline {section}{\numberline {I}Introduction}{1}{section.1}\protected@file@percent }
+\citation{mei2025aios}
+\citation{rama2025cerebrum}
+\citation{packer2023memgpt}
+\citation{liu1973scheduling}
+\citation{corbato1962experimental}
+\citation{silberschatz2018os}
+\citation{kraska2018case}
+\citation{mao2019learning}
+\citation{chen2018tvm}
+\citation{sheng2023flexgen}
+\citation{ollama}
+\@writefile{toc}{\contentsline {section}{\numberline {II}Related Work}{2}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {III}System Architecture and Methodology}{2}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-A}}AIOS Scheduling Pipeline}{2}{subsection.3.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Instrumented AIOS scheduling pipeline. The kernel layer shows the scheduler internals: batch collection, policy-based ordering, and logging. Dashed arrow shows completion feedback.}}{2}{figure.caption.1}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{fig:architecture}{{1}{2}{Instrumented AIOS scheduling pipeline. The kernel layer shows the scheduler internals: batch collection, policy-based ordering, and logging. Dashed arrow shows completion feedback}{figure.caption.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-B}}Experiment Pipeline}{2}{subsection.3.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces Logged Syscall Features (15 per request)}}{2}{table.caption.2}\protected@file@percent }
+\newlabel{tab:features}{{I}{2}{Logged Syscall Features (15 per request)}{table.caption.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Three-phase experiment pipeline. Each phase independently converges on the same conclusion: request features cannot predict latency under GPU-batched execution.}}{2}{figure.caption.3}\protected@file@percent }
+\newlabel{fig:pipeline}{{2}{2}{Three-phase experiment pipeline. Each phase independently converges on the same conclusion: request features cannot predict latency under GPU-batched execution}{figure.caption.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-C}}Workload Design}{2}{subsection.3.3}\protected@file@percent }
+\citation{dubey2024llama}
+\citation{jiang2023mistral}
+\@writefile{toc}{\contentsline {section}{\numberline {IV}Experimental Setup}{3}{section.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {II}{\ignorespaces Combined Dataset Statistics (N = 2,000)}}{3}{table.caption.4}\protected@file@percent }
+\newlabel{tab:dataset}{{II}{3}{Combined Dataset Statistics (N = 2,000)}{table.caption.4}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {V}Phase 1: Feature-Latency Analysis}{3}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-A}}Hypothesis}{3}{subsection.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-B}}Results}{3}{subsection.5.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {III}{\ignorespaces Feature-Latency Spearman Correlations (N = 2,000)}}{3}{table.caption.5}\protected@file@percent }
+\newlabel{tab:correlations}{{III}{3}{Feature-Latency Spearman Correlations (N = 2,000)}{table.caption.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-C}}Structural Explanation: Why Features Fail}{3}{subsection.5.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Latency distributions for Llama 3.1:8b (median 5,657ms) and Mistral:7b (median 4,738ms). Llama is consistently 920ms slower despite similar parameter count.}}{3}{figure.caption.6}\protected@file@percent }
+\newlabel{fig:model_comparison}{{3}{3}{Latency distributions for Llama 3.1:8b (median 5,657ms) and Mistral:7b (median 4,738ms). Llama is consistently 920ms slower despite similar parameter count}{figure.caption.6}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Spearman correlation of each feature with latency. Only \texttt  {max\_tokens} exceeds $|\rho | = 0.1$. Dashed red lines indicate $|\rho | = 0.15$ threshold.}}{3}{figure.caption.7}\protected@file@percent }
+\newlabel{fig:correlations}{{4}{3}{Spearman correlation of each feature with latency. Only \texttt {max\_tokens} exceeds $|\rho | = 0.1$. Dashed red lines indicate $|\rho | = 0.15$ threshold}{figure.caption.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-D}}Conclusion}{3}{subsection.5.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {VI}Phase 2: Classification-Based Scheduling}{3}{section.6}\protected@file@percent }
+\citation{silberschatz2018os}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-A}}Setup}{4}{subsection.6.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-B}}Results}{4}{subsection.6.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {IV}{\ignorespaces Classifier Comparison (Stratified 5-Fold CV, N=1,609)}}{4}{table.caption.8}\protected@file@percent }
+\newlabel{tab:classifiers}{{IV}{4}{Classifier Comparison (Stratified 5-Fold CV, N=1,609)}{table.caption.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-C}}Analysis: Why Classification is Weak}{4}{subsection.6.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {VII}Phase 3: Classical Algorithm Simulation}{4}{section.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-A}}Methodology}{4}{subsection.7.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-B}}Algorithms}{4}{subsection.7.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-C}}Overall Results}{4}{subsection.7.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {V}{\ignorespaces Scheduling Simulation (Top 8 of 16, N=2,000)}}{4}{table.caption.9}\protected@file@percent }
+\newlabel{tab:simulation}{{V}{4}{Scheduling Simulation (Top 8 of 16, N=2,000)}{table.caption.9}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Average turnaround time for top 8 of 16 simulated algorithms. FIFO (green) achieves the lowest turnaround. All reordering strategies perform equal or worse.}}{4}{figure.caption.10}\protected@file@percent }
+\newlabel{fig:simulation}{{5}{4}{Average turnaround time for top 8 of 16 simulated algorithms. FIFO (green) achieves the lowest turnaround. All reordering strategies perform equal or worse}{figure.caption.10}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-D}}Per-Class Tradeoff: The Hidden Dimension}{4}{subsection.7.4}\protected@file@percent }
+\citation{liu1973scheduling}
+\citation{silberschatz2018os}
+\citation{mei2025aios}
+\@writefile{lot}{\contentsline {table}{\numberline {VI}{\ignorespaces Per-Class Average Wait Time (ms) --- The Fairness Tradeoff}}{5}{table.caption.11}\protected@file@percent }
+\newlabel{tab:perclass}{{VI}{5}{Per-Class Average Wait Time (ms) --- The Fairness Tradeoff}{table.caption.11}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Per-class wait and turnaround for FIFO vs SJF vs Priority. Priority-aware algorithms shift wait from fast to large tasks.}}{5}{figure.caption.12}\protected@file@percent }
+\newlabel{fig:perclass}{{6}{5}{Per-class wait and turnaround for FIFO vs SJF vs Priority. Priority-aware algorithms shift wait from fast to large tasks}{figure.caption.12}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {VIII}Why FIFO Wins: A Theoretical Analysis}{5}{section.8}\protected@file@percent }
+\newlabel{sec:why_fifo}{{VIII}{5}{Why FIFO Wins: A Theoretical Analysis}{section.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VIII-A}}Violated Assumption 1: Job-Size Observability}{5}{subsection.8.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VIII-B}}Violated Assumption 2: Sequential Execution}{5}{subsection.8.2}\protected@file@percent }
+\newlabel{eq:batch}{{1}{5}{Violated Assumption 2: Sequential Execution}{equation.1}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Why SJF fails under GPU batching. (a)~Sequential: SJF reduces $\bar  {T}$ by 25\%. (b)~Batched: all complete at $\max (T_i)$; reordering is ineffective.}}{5}{figure.caption.13}\protected@file@percent }
+\newlabel{fig:batching}{{7}{5}{Why SJF fails under GPU batching. (a)~Sequential: SJF reduces $\bar {T}$ by 25\%. (b)~Batched: all complete at $\max (T_i)$; reordering is ineffective}{figure.caption.13}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VIII-C}}Implication}{5}{subsection.8.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {IX}Comparison with AIOS}{5}{section.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {X}Implementation}{5}{section.10}\protected@file@percent }
+\citation{mei2025aios}
+\bibcite{mei2025aios}{1}
+\bibcite{ge2023llm}{2}
+\bibcite{yao2023react}{3}
+\bibcite{shinn2023reflexion}{4}
+\bibcite{rama2025cerebrum}{5}
+\bibcite{packer2023memgpt}{6}
+\bibcite{silberschatz2018os}{7}
+\bibcite{liu1973scheduling}{8}
+\bibcite{corbato1962experimental}{9}
+\@writefile{toc}{\contentsline {section}{\numberline {XI}Discussion}{6}{section.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XI-A}}When Priority Scheduling is Justified}{6}{subsection.11.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XI-B}}Limitations}{6}{subsection.11.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XI-C}}Future Work}{6}{subsection.11.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {XII}Conclusion}{6}{section.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{References}{6}{section*.15}\protected@file@percent }
+\bibcite{kraska2018case}{10}
+\bibcite{mao2019learning}{11}
+\bibcite{chen2018tvm}{12}
+\bibcite{sheng2023flexgen}{13}
+\bibcite{ollama}{14}
+\bibcite{dubey2024llama}{15}
+\bibcite{jiang2023mistral}{16}
+\gdef \@abspage@last{7}
