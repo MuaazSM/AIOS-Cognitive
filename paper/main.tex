@@ -26,19 +26,19 @@
 
 \author{
 \IEEEauthorblockN{Muaaz Shaikh*}
-\IEEEauthorblockA{\textit{B.Tech CSBS} \\
+\IEEEauthorblockA{\textit{Department Of Computer Engineering} \\
 \textit{MPSTME, NMIMS University}\\
 Mumbai, India \\
 muaaz5731@gmail.com}
 \and
 \IEEEauthorblockN{Dhruvil Parekh}
-\IEEEauthorblockA{\textit{B.Tech CSBS} \\
+\IEEEauthorblockA{\textit{Department Of Computer Engineering} \\
 \textit{MPSTME, NMIMS University}\\
 Mumbai, India \\
 dhruvilparekh726@gmail.com}
 \and
 \IEEEauthorblockN{Vaishnavi Parashar}
-\IEEEauthorblockA{\textit{B.Tech CSBS} \\
+\IEEEauthorblockA{\textit{Department Of Computer Engineering} \\
 \textit{MPSTME, NMIMS University}\\
 Mumbai, India \\
 vaishnaviparashar2006@gmail.com}
@@ -68,13 +68,13 @@ LLM agents, operating systems, scheduling algorithms, AIOS, GPU batching, job-si
 
 The deployment of LLM-based autonomous agents~\cite{yao2023react, shinn2023reflexion} has motivated OS-level abstractions for managing concurrent access to shared LLM resources. AIOS~\cite{mei2025aios} introduces such an abstraction: agent queries are decomposed into typed system calls (LLM, memory, storage, tool) and dispatched by a centralized scheduler. The original architecture provides FIFO and Round Robin scheduling, achieving up to 2.1$\times$ throughput over unscheduled frameworks~\cite{mei2025aios}.
 
-A natural next step is to apply classical scheduling theory to this new domain. In traditional OS scheduling, Shortest Job First (SJF) provably minimizes average waiting time when job sizes are known~\cite{silberschatz2018os}. LLM requests carry rich metadata---prompt length, token budget, conversation depth---that might serve as job-size proxies. This motivates our central research question:
+A natural next step is to apply classical scheduling theory to this new domain. In traditional OS scheduling, Shortest Job First (SJF) provably minimizes average waiting time when job sizes are known~\cite{silberschatz2018os}. LLM requests carry rich metadata-prompt length, token budget and conversation depth that might serve as job size proxies. This motivates our central research question i.e. -
 
 \begin{quote}
-\textit{Do classical OS scheduling assumptions---observable job sizes and sequential execution---hold in LLM agent systems? If not, what are the implications for scheduler design?}
+\textit{Do classical OS scheduling assumptions like observable job sizes and sequential execution, hold in LLM agent systems? If not, what are the implications for scheduler design?}
 \end{quote}
 
-We hypothesize that request-level features can approximate job size, enabling classical scheduling improvements over FIFO. We test this hypothesis through three progressively refined approaches and ultimately \textit{reject} it, providing a structural explanation rooted in GPU batch execution dynamics. While prior work establishes the need for scheduling in LLM agent systems~\cite{mei2025aios}, our results reveal a fundamental limitation: \textit{under GPU batching, request-level scheduling provides negligible benefit over FIFO}.
+We hypothesize that request level features can approximate job size thus enabling classical scheduling improvements over FIFO. We test this hypothesis through three progressively refined approaches and ultimately \textit{reject} it, providing a structural explanation rooted in GPU batch execution dynamics. While prior work establishes the need for scheduling in LLM agent systems~\cite{mei2025aios}, our results reveal a fundamental limitation: \textit{under GPU batching, request-level scheduling provides negligible benefit over FIFO}.
 
 \smallskip
 \noindent\textbf{Contributions.} Our work provides:
@@ -295,14 +295,14 @@ max\_tokens & 684 & 660 & 512 & 64 & 2,048 \\
 \end{center}
 \end{table}
 
-\textbf{Dataset justification.} While 2,000 samples is modest for general ML, our setting is a controlled experiment with exhaustive parameter randomization across a fixed set of 5 agent types, 6 token budgets, 7 temperatures, and 2 models. Each configuration appears multiple times, providing sufficient coverage for the correlation and classification analyses. We validate all results with stratified 5-fold cross-validation and report confidence intervals where applicable.
+\textbf{Dataset justification.} While 2,000 samples is modest for general ML, our setting is a controlled experiment with exhaustive parameter randomization across a fixed set of 5 agent types, 6 token budgets, 7 temperatures, and 2 models. Each configuration appears multiple times  and provides sufficient coverage for the correlation as well as the  classification analyses. We validate all the results with stratified 5 fold cross validation and report confidence intervals wherever found applicable.
 
 % ============================================================
 \section{Phase 1: Feature-Latency Analysis}
 % ============================================================
 
 \subsection{Hypothesis}
-We hypothesize that request-level features---particularly \texttt{max\_tokens} and \texttt{input\_char\_length}---correlate with latency strongly enough to enable predictive scheduling.
+We hypothesize that request level features , particularly \texttt{max\_tokens} and \texttt{input\_char\_length}, correlate with latency strongly enough to enable predictive scheduling.
 
 \subsection{Results}
 Table~\ref{tab:correlations} reports Spearman rank correlations. The strongest predictor is \texttt{max\_tokens} ($\rho = 0.206$, $p < 10^{-20}$). All other features have $|\rho| < 0.05$ with latency. Fig.~\ref{fig:model_comparison} shows the latency distributions for both models.
@@ -356,10 +356,10 @@ The weak correlations have a \textit{structural} explanation rooted in how LLM i
 \section{Phase 2: Classification-Based Scheduling}
 % ============================================================
 
-Since continuous prediction failed, we attempted discrete classification into priority classes.
+Since continuous prediction kept failing , so we attempted discrete classification into priority based classes.
 
 \subsection{Setup}
-We define three classes using percentile thresholds: \texttt{fast} ($< p_{33} = 3,846$ms), \texttt{medium} ($p_{33}$--$p_{66}$), \texttt{large} ($\geq p_{66} = 6,993$ms). The feature vector includes 5 numeric features, 5 agent-type one-hot indicators, and 2 model indicators (12 features total). We evaluate six classifiers with stratified 5-fold CV on 80\% of the data.
+We define three classes using percentile thresholds: \texttt{fast} ($< p_{33} = 3,846$ms), \texttt{medium} ($p_{33}$--$p_{66}$), \texttt{large} ($\geq p_{66} = 6,993$ms). The feature vector includes 5 numeric features i.e. the 5 agent type one hot indicators, and 2 model indicators (which include 12 features in totality). We evaluate six classifiers with stratified 5-fold CV on 80\% of the data.
 
 \subsection{Results}
 
@@ -384,11 +384,11 @@ Decision Tree & 0.335 & 0.340 & 0.601 & Overfitting \\
 \end{center}
 \end{table}
 
-After hyperparameter tuning (432-candidate grid search), Gradient Boosting achieves held-out F1 = 0.47 (accuracy 0.47). Feature importances: \texttt{input\_char\_length} (0.36), \texttt{max\_tokens} (0.24), \texttt{agent\_code\_gen} (0.10). The ``medium'' class is poorly discriminated (F1 = 0.41), while ``fast'' (F1 = 0.47) and ``large'' (F1 = 0.52) show partial separability.
+After hyperparameter tuning (432  candidate grid search), we observe that Gradient Boosting achieves held out F1 = 0.47 (with an accuracy of 0.47). Feature importances: \texttt{input\_char\_length} (0.36), \texttt{max\_tokens} (0.24), \texttt{agent\_code\_gen} (0.10). The ``medium'' class is poorly discriminated (F1 = 0.41), while ``fast'' (F1 = 0.47) and ``large'' (F1 = 0.52) show partial separability.
 
 \subsection{Analysis: Why Classification is Weak}
 
-The F1 of 0.47 (vs. 0.33 random baseline) represents a 42\% improvement over chance but remains insufficient for reliable scheduling. The root cause is identical to Phase 1: latency classes are defined by \textit{actual execution time}, which depends on batch dynamics and output length, not input features. The classifier learns a noisy approximation of the max\_tokens $\rightarrow$ latency relationship, which is the only signal available.
+The F1 of 0.47 (vs. 0.33 random baseline) represents a 42\% improvement over chance but at the same time remains insufficient for reliable scheduling. The root cause is identical to Phase 1: latency classes are defined by \textit{actual execution time}, which depends on batch dynamics and output length, not input features. The classifier learns a noisy approximation of the max\_tokens $\rightarrow$ latency relationship, which is the only signal available.
 
 
 % ============================================================
@@ -433,22 +433,22 @@ SJF & 12,269 & 9,251 & 32,763 & +6.2\% \\
 
 \begin{figure}[htbp]
 \centerline{\includegraphics[width=\columnwidth]{algorithm_comparison_bar.png}}
-\caption{Average turnaround time for top 8 of 16 simulated algorithms. FIFO (green) achieves the lowest turnaround. All reordering strategies perform equal or worse.}
+\caption{Average turnaround time for top 8 out of 16 simulated algorithms. FIFO (green) achieves the lowest turnaround whereas all other reordering strategies perform equal or worse.}
 \label{fig:simulation}
 \end{figure}
 
-\textbf{Key finding:} FIFO matches or outperforms all 16 algorithms on average turnaround time. This result is consistent across batch windows of 1s, 3s, and 5s. A Welch's $t$-test between FIFO and SJF per-request turnaround times yields $p = 0.06$, and bootstrap confidence intervals (1,000 resamples) for the mean turnaround difference overlap zero. Neither test reaches significance at $\alpha = 0.05$, confirming that reordering provides no reliable benefit.
+\textbf{Key finding:} FIFO moreover matches or outperforms all 16 algorithms on average turnaround time. This result is consistent across all batch windows of 1s, 3s, and 5s. A Welch's $t$-test between FIFO and SJF per request turnaround times yields $p = 0.06$, and bootstrap confidence intervals (for 1,000 resamples) for the mean turnaround difference overlap zero. Neither test reaches significance at $\alpha = 0.05$ thereby confirming that reordering provides no reliable benefit.
 
 \subsection{Per-Class Tradeoff: The Hidden Dimension}
 
-While FIFO wins on average, the per-class analysis reveals a significant tradeoff that the overall metric obscures:
+While FIFO wins on an average, the per class analysis reveals a extremely significant tradeoff that the overall metric obscures:
 
 \begin{table}[htbp]
-\caption{Per-Class Average Wait Time (ms) --- The Fairness Tradeoff}
+\caption{Per Class Average Wait Time (ms)- The Fairness Tradeoff}
 \begin{center}
 \begin{tabular}{lrrrl}
 \toprule
-\textbf{Algo.} & \textbf{Fast} & \textbf{Medium} & \textbf{Large} & \textbf{Tradeoff} \\
+\textbf{Algorithm} & \textbf{Fast} & \textbf{Medium} & \textbf{Large} & \textbf{Tradeoff} \\
 \midrule
 FIFO & 5,400 & 5,385 & 6,223 & Uniform \\
 SJF & 1,711 & 5,862 & 12,041 & $-$68\% fast, $+$94\% large \\
@@ -459,7 +459,7 @@ Priority & 1,447 & 6,577 & 10,931 & $-$73\% fast, $+$76\% large \\
 \end{center}
 \end{table}
 
-SJF reduces fast-task wait by 68\% (5,400 $\rightarrow$ 1,711ms) at the cost of nearly doubling large-task wait (6,223 $\rightarrow$ 12,041ms). This tradeoff is meaningful: in systems where a QA chatbot requires sub-3-second responses while a background code generator can tolerate 15 seconds, Priority scheduling is strictly superior to FIFO.
+SJF reduces fast-task wait by 68\% (5,400 $\rightarrow$ 1,711ms) at the cost of nearly doubling large-task wait (6,223 $\rightarrow$ 12,041ms). This tradeoff is meaningful: in systems where a QA chatbot requires sub 3 second responses while a background code generator can only tolerate 15 seconds, Thus , we conclude that Priority scheduling is strictly superior to FIFO.
 
 \begin{figure}[htbp]
 \centerline{\includegraphics[width=\columnwidth]{perclass_comparison.png}}
@@ -566,41 +566,41 @@ We implement six scheduler variants as drop-in replacements in the AIOS kernel, 
     \item \texttt{cognitive}: Trained Gradient Boosting classifier routing to fast/medium/large queues.
 \end{itemize}
 
-Selection requires a single config change (\texttt{scheduler\_type} in \texttt{config.yaml}). No code modification needed.
+Selection requires a single configuration change (\texttt{scheduler\_type} in \texttt{config.yaml}) where no code modification is needed.
 
 % ============================================================
 \section{Discussion}
 % ============================================================
 
 \subsection{When Priority Scheduling is Justified}
-Our simulation shows FIFO wins on average but loses on \textit{fairness}. In systems with heterogeneous latency SLAs---e.g., a real-time assistant agent requiring $<$3s response alongside a batch code-generation agent tolerating 15s---Priority scheduling reduces the assistant's wait by 73\% at an acceptable cost to the batch agent. The choice between FIFO and Priority is thus an \textit{engineering decision} driven by deployment requirements, not a universal optimum.
+Our simulation shows FIFO that wins on average but loses on \textit{fairness}. In systems with heterogeneous latency SLAs e.g., a real time assistant agent, requiring $<$3s response alongside a batch code generation agent tolerating 15s Priority scheduling reduces the assistant's wait time by 73\% at an acceptable cost to the batch agent. The choice between FIFO and Priority is thus an \textit{engineering decision} driven by deployment requirements and not a universal optimum.
 
 \subsection{Limitations}
 \begin{itemize}
-    \item \textbf{Single inference backend:} Multi-GPU setups with model parallelism or request routing may exhibit different dynamics.
-    \item \textbf{Similar model sizes:} 7B vs 8B parameters produce only 920ms median difference. Larger gaps (e.g., 7B vs 70B) would amplify model-name as a feature.
-    \item \textbf{Sequential simulation:} Our simulation does not model GPU batching directly. The sequential model provides an upper bound on reordering benefit---if reordering provides no improvement under sequential execution (where it theoretically should help most), it will provide even less under batched execution. A batch-level simulator modeling GPU kernel execution and token-level synchronization is beyond scope but represents important future work.
-    \item \textbf{No preemptive algorithms:} AIOS supports Round Robin with context interruption, but we evaluate only non-preemptive strategies.
-    \item \textbf{Dataset size:} 2,000 syscalls provides sufficient coverage for our controlled parameter space but may not generalize to production workloads with open-ended prompt distributions.
+    \item \textbf{Single inference backend:} Multi GPU setups with model parallelism or request routing may exhibit different dynamics.
+    \item \textbf{Similar model sizes:} 7B vs 8B parameters produce only 920ms median difference. Whereas, larger gaps (e.g., 7B vs 70B) would amplify the model name as a feature.
+    \item \textbf{Sequential simulation:} Our simulation does not model GPU batching directly. The sequential model provides an upper bound on reordering benefit only if reordering provides no improvement under sequential execution (where theoretically, it should help the most), it will provide even less under batched execution. A batch level simulator modeling GPU kernel execution and token level synchronization is beyond the scope but represents important future work.
+    \item \textbf{No preemptive algorithms:} AIOS supports Round Robin with context interruption, but we only evaluate non preemptive strategies  here.
+    \item \textbf{Dataset size:} 2,000 systemcalls provide sufficient coverage for our controlled parameter space however they may not be generalized to production workloads with open ended prompt distributions.
 \end{itemize}
 
 \subsection{Future Work}
 \begin{itemize}
-    \item \textbf{Live batch-composition experiments}: Deploy SJF and Priority on the live AIOS kernel to test whether separating fast and slow requests into different batches yields improvement beyond what simulation predicts.
-    \item \textbf{Output length prediction}: A lightweight model predicting \textit{actual} generation length (rather than the budget ceiling) could restore SJF's theoretical advantage.
-    \item \textbf{Multi-GPU scheduling}: With heterogeneous models across GPUs, request-aware routing becomes a load-balancing problem with richer optimization potential.
-    \item \textbf{RL-based adaptive scheduling}: A reinforcement learning agent that optimizes dispatch policy from reward signals (latency, throughput, fairness) could discover non-obvious strategies.
+    \item \textbf{Live batch-composition experiments}: Deploy SJF and Priority on the live AIOS kernel to test whether separating fast and slow requests into different batches actually yield improvement beyond what the simulation has predicted.
+    \item \textbf{Output length prediction}:However, a lightweight model predicting \textit{actual} generation length (rather than the budget ceiling) could restore SJF's theoretical advantage.
+    \item \textbf{Multi GPU scheduling}: With heterogeneous models across GPUs, request aware routing becomes a load balancing problem with an even richer optimization potential.
+    \item \textbf{RL-based adaptive scheduling}: A reinforcement learning agent that optimizes dispatch policy from reward signals (for eg: latency, throughput, fairness) could discover non obvious strategies.
 \end{itemize}
 
 % ============================================================
 \section{Conclusion}
 % ============================================================
 
-We investigated whether classical OS scheduling assumptions hold for LLM agent systems and found they do not. Our three-phase study on 2,000 AIOS syscalls across two LLM backends reveals:
+We investigated whether classical OS scheduling assumptions hold for LLM agent systems or not. We found out that they do not. Our three phase study on 2,000 AIOS syscalls across two LLM backends reveals:
 
 \begin{enumerate}
-    \item \textbf{Job-size observability fails:} Request features are weak latency predictors (max $\rho = 0.206$) because \texttt{max\_tokens} is a ceiling and actual output length is unobservable.
-    \item \textbf{ML cannot bridge the gap:} The best classifier achieves F1 = 0.47, confirming that the feature space does not cleanly partition into latency classes.
+    \item \textbf{Job-size observability fails:} We observed that request features are weak latency predictors (max $\rho = 0.206$) because \texttt{max\_tokens} is a ceiling and the actual output length is unobservable.
+    \item \textbf{ML cannot bridge the gap:} The best classifier achieves F1 = 0.47 thereby confirming that the feature space does not cleanly partition into latency classes.
     \item \textbf{FIFO is near-optimal:} Among 16 simulated algorithms, no strategy reduces average turnaround below FIFO, because GPU batching nullifies SJF's sequential-execution assumption.
     \item \textbf{A fairness tradeoff exists:} SJF and Priority reduce fast-task wait by 68--73\% at the cost of large-task degradation---a dimension the original AIOS design does not address.
 \end{enumerate}
@@ -629,4 +629,4 @@ This work builds upon the AIOS architecture by Mei et al.~\cite{mei2025aios} at 
 \bibitem{jiang2023mistral} A.~Q.~Jiang \textit{et al.}, ``Mistral 7B,'' \textit{arXiv:2310.06825}, 2023.
 \end{thebibliography}
 
-\end{document}
+\end{document} 
