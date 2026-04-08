@@ -55,7 +55,7 @@ Swarnalata.B@nmims.edu}
 % ============================================================
 \begin{abstract}
 % ============================================================
-Classical OS scheduling theory assumes that job sizes are observable and execution is sequential, enabling algorithms like Shortest Job First (SJF) to provably minimize average waiting time. LLM agent operating systems such as AIOS~\cite{mei2025aios} introduce a fundamentally different execution model: requests are batched to a GPU, actual output length is unobservable a priori, and batch-level dynamics dominate individual request latency. To our knowledge, we present the first empirical study examining whether these differences invalidate classical scheduling assumptions. We instrument the AIOS kernel to log 15 per-syscall features, collect 2,000 syscalls across two LLM backends (Llama~3.1:8b and Mistral:7b) with five concurrent agent types, and conduct a three-phase investigation: (1)~feature-latency correlation analysis revealing that request properties are weak predictors (max Spearman $\rho = 0.206$); (2)~a six-model ML classification study achieving F1~=~0.47, confirming that latency classes are not separable from input features; and (3)~a simulation of 16~classical scheduling algorithms demonstrating that FIFO matches or outperforms all alternatives on average turnaround. We identify the root cause: GPU batching destroys the job-size observability assumption that underpins SJF optimality. However, we show that SJF and Priority scheduling reduce fast-task wait time by 68--73\% at the cost of large-task degradation, revealing a fairness-latency tradeoff absent from the original AIOS design. We release six integrated scheduler implementations and a simulation framework for AIOS.
+Classical OS scheduling theory assumes that job sizes are observable and execution is sequential, enabling algorithms like Shortest Job First (SJF) to provably minimize average waiting time. LLM agent operating systems such as AIOS~\cite{mei2025aios} introduce a fundamentally different execution model: requests are batched to a GPU, actual output length is unobservable a priori, and batch-level dynamics dominate individual request latency. To our knowledge, we present the first empirical study examining whether these differences invalidate classical scheduling assumptions. We instrument the AIOS kernel to log 15 per-syscall features, collect 2,000 syscalls across two LLM backends (Llama~3.1:8b and Mistral:7b) with five concurrent agent types, and conduct a three-phase investigation: (1)~feature-latency correlation analysis revealing that request properties are weak predictors (max Spearman $\rho = 0.206$); (2)~a six-model ML classification study achieving F1~=~0.47, confirming that latency classes are not separable from input features; (3)~a 4-class request type classifier achieving F1~=~0.75, demonstrating that structural request categories are identifiable even when latency is not; and (4)~a simulation of 16~classical scheduling algorithms demonstrating that FIFO matches or outperforms all alternatives on average turnaround. We identify the root cause: GPU batching destroys the job-size observability assumption that underpins SJF optimality. However, we show that SJF and Priority scheduling reduce fast-task wait time by 68--73\% at the cost of large-task degradation, revealing a fairness-latency tradeoff absent from the original AIOS design. We release six integrated scheduler implementations and a simulation framework for AIOS.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -390,6 +390,49 @@ After hyperparameter tuning (432  candidate grid search), we observe that Gradie
 
 The F1 of 0.47 (vs. 0.33 random baseline) represents a 42\% improvement over chance but at the same time remains insufficient for reliable scheduling. The root cause is identical to Phase 1: latency classes are defined by \textit{actual execution time}, which depends on batch dynamics and output length, not input features. The classifier learns a noisy approximation of the max\_tokens $\rightarrow$ latency relationship, which is the only signal available.
 
+\subsection{Request Type Classification}
+
+The latency classifier's poor performance raises a question: \textit{is the feature space itself unstructured, or is latency simply the wrong target?} To answer this, we define a 4-class \textbf{request type taxonomy} based on structural reasoning patterns:
+
+\begin{itemize}
+    \item \textbf{Simple QA}: \texttt{max\_tokens} $\leq$ 128, single-turn, no tools
+    \item \textbf{Conversational}: multi-turn (\texttt{message\_count} $>$ 2), no tools
+    \item \textbf{Tool-Augmented}: \texttt{has\_tools} = true
+    \item \textbf{Long Generation}: \texttt{max\_tokens} $>$ 512, single-turn, no tools
+\end{itemize}
+
+Critically, we \textit{exclude} \texttt{max\_tokens} and \texttt{has\_tools} from the feature vector, forcing the classifier to learn from proxy signals (\texttt{input\_char\_length}, \texttt{temperature}, \texttt{agent\_type}, \texttt{model\_name}, \texttt{message\_count}). Data is split 60/20/20 into train, validation, and held-out test sets.
+
+\begin{table}[htbp]
+\caption{Request Type Classifier (Test Set, N=454)}
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Class} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} & \textbf{Support} \\
+\midrule
+Simple QA & 0.66 & 0.75 & 0.70 & 169 \\
+Conversational & 1.00 & 0.99 & 1.00 & 109 \\
+Tool-Augmented & 1.00 & 1.00 & 1.00 & 91 \\
+Long Generation & 0.33 & 0.25 & 0.28 & 85 \\
+\midrule
+\textbf{Macro Avg} & \textbf{0.75} & \textbf{0.75} & \textbf{0.75} & 454 \\
+\bottomrule
+\end{tabular}
+\label{tab:requesttype}
+\end{center}
+\end{table}
+
+The tuned KNN classifier ($k$=3) achieves \textbf{F1 = 0.75} on the held-out test set (Table~\ref{tab:requesttype}). Tool-Augmented and Conversational requests are classified perfectly (F1 = 1.00), because \texttt{agent\_type} and \texttt{message\_count} serve as strong proxy signals. Simple QA achieves F1 = 0.70. Long Generation is the hardest class (F1 = 0.28), since distinguishing it from Simple QA requires knowing \texttt{max\_tokens}, which is excluded from features.
+
+Fig.~\ref{fig:confusion} shows the confusion matrix. The off-diagonal mass is concentrated in a single cell: 64 Long Generation requests misclassified as Simple QA. Both classes are single-turn with no tools; without \texttt{max\_tokens}, they are structurally identical to the classifier. Conversational and Tool-Augmented classes show near-zero confusion, confirming that \texttt{message\_count} and \texttt{agent\_type} are reliable discriminators.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\columnwidth]{reasoning_confusion_matrix.png}}
+\caption{Confusion matrix for the 4-class request type classifier (held-out test set). Conversational and Tool-Augmented are classified perfectly. The primary confusion is between Simple QA and Long Generation, which are structurally indistinguishable without \texttt{max\_tokens}.}
+\label{fig:confusion}
+\end{figure}
+
+\textbf{Insight.} The contrast between the latency classifier (F1 = 0.47) and the request type classifier (F1 = 0.75) confirms that the feature space contains meaningful structure for categorizing \textit{what} a request is, but not for predicting \textit{how long} it will take. This distinction is important for scheduling: request types can inform priority assignment, but they cannot predict execution time under GPU batching.
 
 % ============================================================
 \section{Phase 3: Classical Algorithm Simulation}
@@ -600,7 +643,7 @@ We investigated whether classical OS scheduling assumptions hold for LLM agent s
 
 \begin{enumerate}
     \item \textbf{Job-size observability fails:} We observed that request features are weak latency predictors (max $\rho = 0.206$) because \texttt{max\_tokens} is a ceiling and the actual output length is unobservable.
-    \item \textbf{ML cannot bridge the gap:} The best classifier achieves F1 = 0.47 thereby confirming that the feature space does not cleanly partition into latency classes.
+    \item \textbf{ML cannot bridge the gap:} The best latency classifier achieves F1 = 0.47, confirming that latency classes are not separable from input features. However, a 4-class request type classifier achieves F1 = 0.75, showing that structural request categories \textit{are} identifiable---the feature space has structure, but it does not predict runtime.
     \item \textbf{FIFO is near-optimal:} Among 16 simulated algorithms, no strategy reduces average turnaround below FIFO, because GPU batching nullifies SJF's sequential-execution assumption.
     \item \textbf{A fairness tradeoff exists:} SJF and Priority reduce fast-task wait by 68--73\% at the cost of large-task degradation---a dimension the original AIOS design does not address.
 \end{enumerate}
